@@ -62,17 +62,6 @@ npm run dev
 * Atualização de dados do usuário
 * Integração com API
 
----
-
-## 📌 Melhorias futuras
-
-* Dashboard com gráficos
-* Upload de imagens
-* Deploy em produção
-* Testes automatizados
-
----
-
 ## 👨‍💻 Autor
 
 Natanael Moreira Rocha
