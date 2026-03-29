@@ -1,0 +1,33 @@
+# Dependências
+node_modules/
+jspm_packages/
+
+# Compilação/Build
+dist/
+out/
+lib/
+*.tsbuildinfo
+
+# Variáveis de Ambiente (CRÍTICO)
+# Nunca suba chaves de banco de dados ou senhas para o Git
+.env
+.env.test
+.env.production
+.env.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Testes
+coverage/
+.nyc_output
+
+# IDEs e Sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
