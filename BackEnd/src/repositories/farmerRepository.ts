@@ -1,83 +1,96 @@
+import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import pool from '../config/database';
 import { Farmer } from '../models/Farmer';
 
-export const getAllFarmers = async ( page: number, limit: number): Promise<{ data: Farmer[]; total: number }> => { 
-  // Implementação de paginação
+// Tipagem para os dados de criação (sem o ID e campos automáticos)
+export interface FarmerInput {
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  cpf: string;
+  phone: string;
+  email: string;
+  profession: string;
+  description: string;
+  password_hash: string;
+  status?: number;
+  gender: string;
+}
+
+export const getAllFarmers = async (page: number, limit: number): Promise<{ data: Farmer[]; total: number }> => { 
   const offset = (page - 1) * limit;
 
-  // Consulta para obter os agricultores com limite e offset
-  const [rows] = await pool.query(
+  // Traz os dados paginados
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM Farmer LIMIT ? OFFSET ?',
     [limit, offset]
   );
 
-  // Consulta para obter o total de agricultores (sem limite)
-  const [countResult]: any = await pool.query(
+  // Traz o total (tipamos como RowDataPacket para acessar o .total sem usar any)
+  const [countResult] = await pool.query<RowDataPacket[]>(
     'SELECT COUNT(*) as total FROM Farmer'
   );
 
-  // Retorna os agricultores e o total para a paginação
   return {
     data: rows as Farmer[],
-    total: countResult[0].total
+    total: countResult[0].total as number
   };
 };
 
+export const getFarmerByEmail = async (email: string): Promise<Farmer | null> => {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    'SELECT * FROM Farmer WHERE email = ?',
+    [email]
+  );
 
-export const getFarmer = async (email: string): Promise<Farmer | null> => {
-    const [rows] = await pool.query(
-        'SELECT * FROM Farmer WHERE email = ?',
-        [email]
-    );
-
-    const farmers = rows as Farmer[];
-
-    return farmers.length ? farmers[0] : null;
+  return rows.length ? (rows[0] as Farmer) : null;
 };
 
-export const getFarmerMe = async (id: number): Promise<Farmer | null> => {
-    const [rows] = await pool.query(
-        `SELECT 
-            f.id,
-            f.first_name,
-            f.last_name,
-            f.display_name,
-            f.email,
-            f.cpf,
-            f.phone,
-            f.profession,
-            f.description,
-            f.status,
-            f.gender,
-            JSON_OBJECT(
-                'address_type', a.address_type,
-                'street', a.street,
-                'number', a.number,
-                'complement', a.complement,
-                'neighborhood', a.neighborhood,
-                'city', a.city,
-                'state', a.state,
-                'zip_code', a.zip_code,
-                'latitude', a.latitude,
-                'longitude', a.longitude,
-                'is_primary', a.is_primary,
-                'created_at', a.created_at
-            ) AS address
-        FROM Farmer f
-        LEFT JOIN Address a 
-            ON a.fk_farmer_id = f.id AND a.is_primary = 1
-        WHERE f.id = ?`,
-        [id]
-    );
+export const getFarmerById = async (id: number): Promise<any | null> => {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT 
+        f.id,
+        f.first_name,
+        f.last_name,
+        f.display_name,
+        f.email,
+        f.cpf,
+        f.phone,
+        f.profession,
+        f.description,
+        f.status,
+        f.gender,
+        JSON_OBJECT(
+            'address_type', a.address_type,
+            'street', a.street,
+            'number', a.number,
+            'complement', a.complement,
+            'neighborhood', a.neighborhood,
+            'city', a.city,
+            'state', a.state,
+            'zip_code', a.zip_code,
+            'latitude', a.latitude,
+            'longitude', a.longitude,
+            'is_primary', a.is_primary,
+            'created_at', a.created_at
+        ) AS address
+    FROM Farmer f
+    LEFT JOIN Address a 
+        ON a.fk_farmer_id = f.id AND a.is_primary = 1
+    WHERE f.id = ?`,
+    [id]
+  );
 
-    const farmers = rows as any[];
-
-    return farmers.length ? farmers[0] : null;
+  return rows.length ? rows[0] : null;
 };
 
-export const createFarmer = async ( farmer: any, conn: any = pool): Promise<Farmer> => {
+export const createFarmer = async (
+  farmer: FarmerInput, 
+  connection?: PoolConnection | Pool
+): Promise<number> => { // Corrigido: Retorna number (insertId) ao invés de Farmer
+  const db = connection || pool;
 
-  const [result]: any = await conn.query(
+  const [result] = await db.query<ResultSetHeader>(
     `INSERT INTO Farmer
     (first_name, last_name, display_name, cpf, phone, email, profession, description, password_hash, status, gender)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -91,7 +104,7 @@ export const createFarmer = async ( farmer: any, conn: any = pool): Promise<Farm
       farmer.profession,
       farmer.description,
       farmer.password_hash,
-      farmer.status ?? 1,
+      farmer.status ?? 1, // Valor default mantido
       farmer.gender
     ]
   );
@@ -99,37 +112,39 @@ export const createFarmer = async ( farmer: any, conn: any = pool): Promise<Farm
   return result.insertId;
 };
 
-export const deleteFarmer = async (id: number): Promise<boolean> => {
-    const [result]: any = await pool.query(
-        'DELETE FROM Farmer WHERE id = ?',
-        [id]
-    );
-
-    return result.affectedRows > 0;
-};
-
-
-export const updateFarmer = async (userId: number, data: any, connection: any) => {
-
+export const updateFarmer = async (
+  id: number, 
+  data: Partial<Farmer>, // Partial permite enviar apenas os campos que vão mudar
+  connection?: PoolConnection | Pool
+): Promise<void> => {
   if (Object.keys(data).length === 0) return;
 
-  const fields = Object.keys(data)
-    .map((key) => `${key} = ?`)
-    .join(', ');
-
+  const db = connection || pool;
+  
+  const fields = Object.keys(data).map((key) => `${key} = ?`).join(', ');
   const values = Object.values(data);
 
-  await connection.query(
+  await db.query<ResultSetHeader>(
     `UPDATE Farmer SET ${fields} WHERE id = ?`,
-    [...values, userId]
+    [...values, id]
   );
 };
 
-export default {
-    getAllFarmers,
-    getFarmer,
-    getFarmerMe,
-    createFarmer,
-    deleteFarmer,
-    updateFarmer
+export const deleteFarmer = async (id: number): Promise<boolean> => {
+  const [result] = await pool.query<ResultSetHeader>(
+    'DELETE FROM Farmer WHERE id = ?',
+    [id]
+  );
+
+  return result.affectedRows > 0;
 };
+
+export default {
+  getAllFarmers,
+  getFarmerByEmail,
+  getFarmerById,
+  createFarmer,
+  updateFarmer,
+  deleteFarmer
+};
+

@@ -1,6 +1,7 @@
+import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import pool from '../config/database';
 
-type RefreshToken = {
+export type RefreshToken = {
   id?: number;
   token_hash: string;
   fk_farmer_id: number;
@@ -9,76 +10,108 @@ type RefreshToken = {
   created_at?: Date;
 };
 
-export const createRefreshToken = async (data: RefreshToken, conn: any = pool): Promise<number> => { // Retorna o ID do token criado
-  const [result]: any = await conn.query(
+// 1. Criar token
+export const createRefreshToken = async (
+  data: RefreshToken,
+  connection?: PoolConnection | Pool
+): Promise<number> => {
+  const db = connection || pool;
+
+  const [result] = await db.query<ResultSetHeader>(
     `INSERT INTO Refresh_token 
-    (token_hash, fk_farmer_id, expires_at, revoked, created_at)
-    VALUES (?, ?, ?, ?, NOW())`,
+     (token_hash, fk_farmer_id, expires_at, revoked, created_at)
+     VALUES (?, ?, ?, ?, NOW())`,
     [
       data.token_hash,
       data.fk_farmer_id,
       data.expires_at,
-      data.revoked
+      data.revoked ? 1 : 0 // Garante que o MySQL receba 0 ou 1
     ]
   );
 
   return result.insertId;
 };
 
-export const findRefreshTokenByHash = async ( // Busca um token de atualização no banco usando o hash do token recebido
+// 2. Buscar por hash 
+export const findByTokenHash = async (
   tokenHash: string
 ): Promise<RefreshToken | null> => {
-
-  const [rows] = await pool.query(
+  const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT * FROM Refresh_token
      WHERE token_hash = ?
      LIMIT 1`,
     [tokenHash]
   );
 
-  const tokens = rows as RefreshToken[];
-
-  return tokens.length ? tokens[0] : null;
+  return rows.length ? (rows[0] as RefreshToken) : null;
 };
 
-export const revokeRefreshToken = async ( // Revoga um token de atualização específico, marcando-o como revogado no banco
+// 3. Revogar por ID
+export const revokeTokenById = async (
   id: number,
-  conn: any = pool
-): Promise<void> => {
+  connection?: PoolConnection | Pool
+): Promise<boolean> => {
+  const db = connection || pool;
 
-  await conn.query(
+  const [result] = await db.query<ResultSetHeader>(
     `UPDATE Refresh_token
-     SET revoked = true
+     SET revoked = 1
      WHERE id = ?`,
     [id]
   );
+
+  return result.affectedRows > 0;
 };
 
-export const revokeAllRefreshTokensByUser = async ( // Revoga todos os tokens de atualização de um usuário específico, útil para logout global ou segurança
-  userId: number,
-  conn: any = pool
-): Promise<void> => {
+// 4. Revogar por HASH 
+export const revokeTokenByHash = async (
+  tokenHash: string,
+  connection?: PoolConnection | Pool
+): Promise<boolean> => {
+  const db = connection || pool;
 
-  await conn.query(
+  const [result] = await db.query<ResultSetHeader>(
     `UPDATE Refresh_token
-     SET revoked = true
+     SET revoked = 1
+     WHERE token_hash = ?`,
+    [tokenHash]
+  );
+
+  return result.affectedRows > 0;
+};
+
+// 5. Revogar todos do usuário (ex: trocar de senha, deslogar de tudo)
+export const revokeAllByUser = async (
+  userId: number,
+  connection?: PoolConnection | Pool
+): Promise<boolean> => {
+  const db = connection || pool;
+
+  const [result] = await db.query<ResultSetHeader>(
+    `UPDATE Refresh_token
+     SET revoked = 1
      WHERE fk_farmer_id = ?`,
     [userId]
   );
+
+  return result.affectedRows > 0;
 };
 
-export const deleteExpiredRefreshTokens = async (): Promise<void> => { // Limpa o banco de dados removendo tokens de atualização que já expiraram para manter a segurança e desempenho
-
-  await pool.query(
+// 6. Limpar expirados (Job de faxina)
+export const deleteExpiredRefreshTokens = async (): Promise<number> => {
+  const [result] = await pool.query<ResultSetHeader>(
     `DELETE FROM Refresh_token
      WHERE expires_at < NOW()`
   );
+
+  return result.affectedRows; // Retorna quantas linhas foram deletadas
 };
 
 export default {
   createRefreshToken,
-  findRefreshTokenByHash,
-  revokeRefreshToken,
-  revokeAllRefreshTokensByUser,
+  findByTokenHash,
+  revokeTokenById,
+  revokeTokenByHash,
+  revokeAllByUser,
   deleteExpiredRefreshTokens
 };

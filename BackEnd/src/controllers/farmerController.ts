@@ -1,177 +1,197 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import farmerRepository from '../repositories/farmerRepository';
-import addressRepository from '../repositories/AddressRepository';
+import addressRepository from '../repositories/addressRepository';
 import pool from '../config/database';
 
-
-export const listFarmers = async (req: Request, res: Response) => {
+export const getAllFarmers = async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Number(req.query.limit) || 10);
 
     const { data, total } = await farmerRepository.getAllFarmers(page, limit);
 
-    // remove password_hash
+    // Remove password_hash antes de enviar ao front
     const sanitized = data.map(({ password_hash, ...rest }) => rest);
 
-    return res.json({
-      data: sanitized, 
-      page,
-      limit,
-      total,
+    return res.status(200).json({
+      success: true,
+      data: {
+        items: sanitized,
+        page,
+        limit,
+        total,
+      }
     });
-
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Erro ao buscar Agricultores' });
+    console.error("Erro no getAll (Farmer):", err);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro interno ao buscar agricultores.' 
+    });
   }
 };
 
-
-export const getFarmerMe = async (req: Request, res: Response) => {
+export const getMeFarmer = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
 
-    const farmer = await farmerRepository.getFarmerMe(userId);
+    const farmer = await farmerRepository.getFarmerById(userId);
 
     if (!farmer) {
-      return res.status(404).json({ message: "Agricultor não encontrado" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Agricultor não encontrado." 
+      });
     }
 
     const { password_hash, ...rest } = farmer;
 
-    return res.json(rest);
-
+    return res.status(200).json({
+      success: true,
+      data: rest
+    });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Erro ao buscar Agricultor' });
+    console.error("Erro no getMe (Farmer):", err);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro interno ao buscar dados do agricultor.' 
+    });
   }
 };
 
-//devido à complexidade do registro (inserção em duas tabelas(Farmer e Address), 
-// a função de criação do agricultor é feita diretamente no controller, utilizando transações para garantir a integridade dos dados
-export const registerFarmer = async (req: Request, res: Response) => {
-
-const data = req.body
-  const connection = await pool.getConnection();
-
+export const createFarmer = async (req: Request, res: Response) => {
   try {
-    const { password, confirm_password, address, ...rest } = data;
+    const { password, confirm_password, address, ...rest } = req.body;
 
+    // Fail-fast: Valida antes de abrir conexão com o banco
     if (password !== confirm_password) {
-      throw new Error("Senhas não conferem");
+      return res.status(400).json({ 
+        success: false, 
+        message: "As senhas não conferem." 
+      });
     }
-
-    //cria uma conexão e inicia uma transação para garantir que tanto o agricultor quanto o endereço sejam criados com sucesso ou ambos sejam revertidos em caso de erro
-    await connection.beginTransaction();
 
     const password_hash = await bcrypt.hash(password, 10);
+    const connection = await pool.getConnection();
 
-    const farmerId = await farmerRepository.createFarmer(
-      { ...rest, password_hash },
-      connection //conexao
-    );
+    try {
+      await connection.beginTransaction();
 
-    if (address) {
-      await addressRepository.createAddress(
-        farmerId,
-        address,
-        connection //a mesma conexão para garantir atomicidade
+      const farmerId = await farmerRepository.createFarmer(
+        { ...rest, password_hash },
+        connection
       );
+
+      if (address) {
+        await addressRepository.createAddress(
+          Number(farmerId),
+          address,
+          connection
+        );
+      }
+
+      await connection.commit();
+
+      return res.status(201).json({
+        success: true,
+        message: "Agricultor cadastrado com sucesso.",
+        data: { id: farmerId }
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      throw error; // Joga o erro para o catch externo capturar e devolver o 500
+    } finally {
+      connection.release();
     }
-
-    await connection.commit();
-
-
-    return res.status(201).json({
-      message: "Agricultor adicionado com o ID: ", farmerId
-    });
-
   } catch (error) {
-    await connection.rollback(); //rolback em caso de erro para evitar dados inconsistentes
-    throw error;
-
-  } finally {
-    connection.release();
+    console.error("Erro no create (Farmer):", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Erro interno ao cadastrar agricultor." 
+    });
   }
 };
 
-
-export const deleteFarmer = async (req: Request, res: Response) => {
+export const updateFarmer = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const { address, ...rest } = req.body;
 
-    const deleted = await farmerRepository.deleteFarmer(Number(id));
+    const connection = await pool.getConnection(); 
 
-    if (!deleted) {
-      return res.status(404).json({ message: "Agricultor não encontrado" });
+    try {
+      await connection.beginTransaction();
+
+      // Limpa dados undefined/null
+      const cleanData = Object.fromEntries(
+        Object.entries(rest).filter(([_, v]) => v !== undefined && v !== null)
+      );
+
+      // Atualiza Farmer
+      if (Object.keys(cleanData).length > 0) {
+        await farmerRepository.updateFarmer(userId, cleanData, connection);
+      }
+
+      // Atualiza Address
+      if (address && Object.keys(address).length > 0) {
+        await addressRepository.updateAddress(userId, address, connection);
+      }
+
+      await connection.commit();
+
+      return res.status(200).json({
+        success: true,
+        message: "Cadastro atualizado com sucesso."
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Erro no update (Farmer):", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Erro interno ao atualizar cadastro." 
+    });
+  }
+};
+
+export const removeFarmer = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+
+    const success = await farmerRepository.deleteFarmer(id);
+
+    if (!success) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Agricultor não encontrado para deleção." 
+      });
     }
 
     return res.status(200).json({
-      message: "Agricultor excluído com sucesso"
+      success: true,
+      message: "Agricultor excluído com sucesso."
     });
-
   } catch (error: any) {
-    console.error("Erro ao excluir Agricultor:", error);
+    console.error("Erro no remove (Farmer):", error);
     return res.status(500).json({
-      message: "Erro interno do servidor",
-      error: error.message
+      success: false,
+      message: "Erro interno ao excluir agricultor."
     });
-  }
-};
-
-
-export const updateFarmer = async (req: Request, res: Response) => {
-  const connection = await pool.getConnection(); 
-
-  try {
-    const userId = (req as any).user.id;
-
-    const { address, ...rest } = req.body;
-
-    await connection.beginTransaction(); //inicia a transação para garantir que as atualizações sejam atômicas
-
-    //remove undefined/null
-    const cleanData = Object.fromEntries(
-      Object.entries(rest).filter(
-        ([_, v]) => v !== undefined && v !== null
-      )
-    );
-
-    //Atualiza o agricultor só se tiver algo
-    if (Object.keys(cleanData).length > 0) {
-      await farmerRepository.updateFarmer(userId, cleanData, connection);
-    }
-
-    //Atualiza Address (parcial também)
-    if (address && Object.keys(address).length > 0) {
-      await addressRepository.updateAddress(userId, address, connection);
-    }
-
-    await connection.commit();
-
-    return res.json({
-      message: "Cadastro do Agricultor Atualizado com sucesso"
-    });
-
-  } catch (error) {
-    await connection.rollback();
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro ao atualizar"
-    });
-
-  } finally {
-    connection.release();
   }
 };
 
 export default {
-  listFarmers,
-  registerFarmer,
-  deleteFarmer,
+  getAllFarmers,
+  getMeFarmer,
+  createFarmer,
   updateFarmer,
-  getFarmerMe
+  removeFarmer
 };
+

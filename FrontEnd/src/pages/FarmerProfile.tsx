@@ -1,78 +1,105 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, MapPin, Save } from 'lucide-react';
-import { toast } from 'sonner';
-import { putchFarmer, getFarmerMe } from '../services/farmer';
-import type { Farmer, FarmerUpdate } from '../Models/Models';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, User, MapPin, Save, Sprout } from "lucide-react";
+import { toast } from "sonner";
+import { putchFarmer, getFarmerMe } from "../services/farmer";
+import type { Farmer, FarmerUpdate } from "../Models/Models";
+import { Loading } from "../components/Loading";
+import { buscarCep } from "../services/locationService";
 
 export function FarmerProfile() {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+
   const [originalData, setOriginalData] = useState<FarmerUpdate | null>(null);
+
   const [formData, setFormData] = useState<FarmerUpdate>({
-    id: '',
-    first_name: '',
-    last_name: '',
-    display_name: '',
-    cpf: '',
-    phone: '',
-    email: '',
-    profession: '',
-    description: '',
+    id: "",
+    first_name: "",
+    last_name: "",
+    display_name: "",
+    cpf: "",
+    phone: "",
+    email: "",
+    profession: "",
+    description: "",
     address: {
-      street: '',
-      number: '',
-      complement: '',
-      neighborhood: '',
-      city: '',
-      state: '',
-      zip_code: '',
-    }
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+      zip_code: "",
+    },
   });
 
-  // Funções de formatação para CPF, telefone e CEP
+  const inputClass =
+    "w-full px-4 py-3 border border-stone-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all";
+
+  const textareaClass =
+    "w-full px-4 py-3 border border-stone-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all resize-none";
+
+  const labelClass = "block text-sm font-medium text-stone-700 mb-2";
+
+  const cardClass = "bg-white rounded-xl p-6 border border-green-600 shadow-sm";
+
   const formatCPF = (v: string) =>
-    v.replace(/\D/g, '')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+    v
+      .replace(/\D/g, "")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})/, "$1-$2")
       .slice(0, 14);
 
   const formatPhone = (v: string) =>
-    v.replace(/\D/g, '')
-      .replace(/(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{5})(\d)/, '$1-$2')
+    v
+      .replace(/\D/g, "")
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2")
       .slice(0, 15);
 
   const formatZipCode = (v: string) =>
-    v.replace(/\D/g, '')
-      .replace(/(\d{5})(\d)/, '$1-$2')
+    v
+      .replace(/\D/g, "")
+      .replace(/(\d{5})(\d)/, "$1-$2")
       .slice(0, 9);
 
-  // Função para buscar os dados do agricultor e formatá-los para exibição
-  async function fetchFarmerData() {
-    const data = await getFarmerMe();
+ async function fetchFarmerData() {
+    try {
+      // 1. Colocamos o 'as any' temporário para o TS não reclamar
+      const response = (await getFarmerMe()) as any;
+      
+      // 2. Extraímos o objeto real do agricultor que o backend enviou
+      const farmerData = response.data; 
 
-    const formattedData: FarmerUpdate = {
-      ...data,
-      cpf: formatCPF(data.cpf || ""),
-      phone: formatPhone(data.phone || ""),
-      address: {
-        ...data.address,
-        zip_code: formatZipCode(data.address?.zip_code || "")
-      }
-    };
+      // 3. Agora usamos 'farmerData' ao invés de 'data'
+      const formattedData: FarmerUpdate = {
+        ...farmerData,
+        cpf: formatCPF(farmerData?.cpf || ""),
+        phone: formatPhone(farmerData?.phone || ""),
+        address: {
+          ...farmerData?.address,
+          zip_code: formatZipCode(farmerData?.address?.zip_code || ""),
+        },
+      };
 
-    setFormData(formattedData);
-    setOriginalData(formattedData);
+      setFormData(formattedData);
+      setOriginalData(formattedData);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao carregar perfil");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // useEffect para verificar autenticação e carregar os dados do agricultor ao montar o componente
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
 
     if (!user.id) {
-      navigate('/agricultor/login');
+      navigate("/agricultor/login");
       return;
     }
 
@@ -82,32 +109,51 @@ export function FarmerProfile() {
   const handleFieldChange = (field: keyof Farmer, value: string) => {
     let formattedValue = value;
 
-    if (field === 'phone') formattedValue = formatPhone(value);
-
-    setFormData(prev => ({ ...prev, [field]: formattedValue }));
-  };
-
-  // Função para lidar com mudanças nos campos de endereço, aplicando formatação específica para o CEP
-  const handleAddressChange = (
-    field: keyof Farmer['address'],
-    value: string
-  ) => {
-    let formattedValue = value;
-
-    if (field === 'zip_code') {
-      formattedValue = formatZipCode(value);
+    if (field === "phone") {
+      formattedValue = formatPhone(value);
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      address: {
-        ...prev.address,
-        [field]: formattedValue
-      }
+      [field]: formattedValue,
     }));
   };
 
-  // Função para comparar os dados originais com os atuais e extrair apenas os campos que foram alterados
+  const handleAddressChange = async (
+    field: keyof Farmer["address"],
+    value: string,
+  ) => {
+    let formattedValueCep = formatZipCode(value);
+
+    if (field === "zip_code" && value.replace(/\D/g, "").length === 8) {
+      try {
+        const dadosCep = await buscarCep(formattedValueCep);
+        console.log("Dados do CEP:", dadosCep); // Verifique os dados retornados
+        setFormData((prev) => ({
+          ...prev,
+          address: {
+            ...prev.address,
+            zip_code: formattedValueCep,
+            street: dadosCep.logradouro,
+            neighborhood: dadosCep.bairro,
+            city: dadosCep.localidade,
+            state: dadosCep.uf,
+          },
+        }));
+      } catch {
+        toast.error("CEP não encontrado");
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [field]: value,
+      },
+    }));
+  };
+
   function getChangedFields(original: any, current: any): any {
     const changes: any = {};
 
@@ -116,11 +162,14 @@ export function FarmerProfile() {
       const originalValue = original?.[key];
 
       if (
-        typeof currentValue === 'object' &&
+        typeof currentValue === "object" &&
         currentValue !== null &&
         !Array.isArray(currentValue)
       ) {
-        const nestedChanges = getChangedFields(originalValue || {}, currentValue);
+        const nestedChanges = getChangedFields(
+          originalValue || {},
+          currentValue,
+        );
 
         if (Object.keys(nestedChanges).length > 0) {
           changes[key] = nestedChanges;
@@ -133,320 +182,310 @@ export function FarmerProfile() {
     return changes;
   }
 
-  // Função para lidar com o envio do formulário, que compara os dados atuais com os originais, extrai as mudanças e envia apenas os campos alterados para a API
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
 
       if (!user.id) {
-        toast.error('Invalid user');
+        toast.error("Usuário inválido");
         return;
       }
 
       if (!originalData) {
-        toast.error('Error comparing data');
+        toast.error("Erro ao comparar dados");
         return;
       }
 
       const cleanedData = {
         ...formData,
-        cpf: formData.cpf.replace(/\D/g, ''),
-        phone: formData.phone.replace(/\D/g, ''),
+        cpf: (formData.cpf ?? "").replace(/\D/g, ""),
+        phone: (formData.phone ?? "").replace(/\D/g, ""),
         address: {
           ...formData.address,
-          zip_code: formData.address.zip_code.replace(/\D/g, '')
-        }
+          zip_code: (formData.address?.zip_code ?? "").replace(/\D/g, ""),
+        },
       };
 
       const cleanedOriginal = {
         ...originalData,
-        cpf: originalData.cpf.replace(/\D/g, ''),
-        phone: originalData.phone.replace(/\D/g, ''),
+        cpf: (originalData.cpf ?? "").replace(/\D/g, ""),
+        phone: (originalData.phone ?? "").replace(/\D/g, ""),
         address: {
           ...originalData.address,
-          zip_code: originalData.address.zip_code.replace(/\D/g, '')
-        }
+          zip_code: (originalData.address?.zip_code ?? "").replace(/\D/g, ""),
+        },
       };
 
       const changes = getChangedFields(cleanedOriginal, cleanedData);
 
       if (Object.keys(changes).length === 0) {
-        toast.info('Nenhuma alteração realizada. Clique em Cancelar para voltar.');
+        toast.info("Nenhuma alteração realizada.");
         return;
       }
 
       await putchFarmer(changes);
 
-      toast.success('Perfil atualizado com sucesso!');
-      navigate("/agricultor/dashboard");
+      toast.success("Perfil atualizado com sucesso!");
 
+      navigate("/agricultor/dashboard");
     } catch (error) {
       console.error(error);
-      toast.error('Error saving profile');
+      toast.error("Erro ao salvar perfil");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  if (loading) {
+    return <Loading />;
+  }
+
   return (
-    <>
+    <div className="min-h-screen bg-stone-50">
+      {/* HEADER */}
+      <header className="border-b border-stone-200 sticky top-0 z-40 shadow-sm bg-white">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <button
+              onClick={() => navigate("/agricultor/dashboard")}
+              className="flex items-center gap-2 text-stone-700 hover:text-stone-900 transition-colors"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Voltar</span>
+            </button>
 
-      <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-900 py-12 px-4">
-        <div className="max-w-4xl mx-auto">
+            <div>
+              <h1 className="text-2xl font-bold text-stone-900">
+                Editar Perfil
+              </h1>
 
-          <header className="mb-8">
-            <Link to="/agricultor/dashboard" className="inline-flex items-center gap-2 text-green-100 hover:text-white mb-4">
-              <ArrowLeft size={20} /> Voltar
-            </Link>
-
-            <h1 className="text-3xl font-bold text-white">
-              Editar Perfil
-            </h1>
-
-            <p className="text-green-100">
-              Atualize suas informações.
-            </p>
-
-          </header>
-
-          <form onSubmit={handleSubmit} className="space-y-8">
-
-            {/* DADOS PESSOAIS */}
-
-            <section className="bg-white p-8 rounded-3xl shadow-2xl">
-
-              <h2 className="text-xl font-bold text-stone-800 mb-6 flex items-center gap-2 border-b pb-4">
-                <User size={24} className="text-green-700" />
-                Dados Pessoais
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                <div>
-                  <label className="label-estilizada">Nome</label>
-                  <input
-                    className="input-estilizado"
-                    value={formData.first_name}
-                    onChange={(e) => handleFieldChange("first_name", e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="label-estilizada">Sobrenome</label>
-                  <input
-                    className="input-estilizado"
-                    value={formData.last_name}
-                    onChange={(e) => handleFieldChange("last_name", e.target.value)}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="label-estilizada">
-                    Nome de Apresentação
-                  </label>
-
-                  <input
-                    className="input-estilizado"
-                    value={formData.display_name}
-                    onChange={(e) => handleFieldChange("display_name", e.target.value)}
-                  />
-
-                </div>
-
-                <div>
-                  <label className="label-estilizada">Telefone</label>
-
-                  <input className="input-estilizado" value={formData.phone} onChange={(e) => handleFieldChange("phone", e.target.value)}
-                  />
-
-                </div>
-
-                <div>
-                  <label className="label-estilizada">Email</label>
-                  <input className="input-estilizado" value={formData.email} onChange={(e) => handleFieldChange("email", e.target.value)}
-                  />
-                </div>
-              </div>
-            </section>
-
-
-            {/* ATIVIDADE */}
-
-            <section className="bg-white p-8 rounded-3xl shadow-2xl">
-              <h2 className="text-xl font-bold text-stone-800 mb-6 border-b pb-4">
-                Atividade Rural
-              </h2>
-              <div className="space-y-6">
-                <div>
-                  <label className="label-estilizada">
-                    Profissão
-                  </label>
-                  <input
-                    className="input-estilizado"
-                    value={formData.profession}
-                    onChange={(e) => handleFieldChange("profession", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="label-estilizada">
-                    Descrição
-                  </label>
-                  <textarea
-                    rows={4}
-                    className="input-estilizado"
-                    value={formData.description}
-                    onChange={(e) => handleFieldChange("description", e.target.value)}
-                  />
-                </div>
-              </div>
-            </section>
-
-
-
-            {/* ENDEREÇO */}
-
-            <section className="bg-white p-8 rounded-3xl shadow-2xl">
-
-              <h2 className="text-xl font-bold text-stone-800 mb-6 flex items-center gap-2 border-b pb-4">
-                <MapPin size={24} className="text-green-700" />
-                Endereço
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                <div>
-                  <label className="label-estilizada max-w-md=9">CEP</label>
-                  <input
-                    className="input-estilizado"
-                    value={formData.address.zip_code}
-                    onChange={(e) => handleAddressChange("zip_code", e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="label-estilizada">Número</label>
-                  <input
-                    className="input-estilizado"
-                    value={formData.address.number}
-                    onChange={(e) => handleAddressChange("number", e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="label-estilizada">Complemento</label>
-                  <input
-                    className="input-estilizado"
-                    value={formData.address.complement || ''}
-                    onChange={(e) => handleAddressChange("complement", e.target.value)}
-                  />
-                </div>
-
-                <div className="md:col-span-3">
-                  <label className="label-estilizada">Rua</label>
-
-                  <input
-                    className="input-estilizado"
-                    value={formData.address.neighborhood}
-                    onChange={(e) => handleAddressChange("neighborhood", e.target.value)}
-                  />
-
-                </div>
-
-                <div>
-                  <label className="label-estilizada">Bairro</label>
-
-                  <input
-                    className="input-estilizado"
-                    value={formData.address.street}
-                    onChange={(e) => handleAddressChange("street", e.target.value)}
-                  />
-
-                </div>
-
-                <div>
-                  <label className="label-estilizada">Cidade</label>
-
-                  <input
-                    className="input-estilizado"
-                    value={formData.address.city}
-                    onChange={(e) => handleAddressChange("city", e.target.value)}
-                  />
-
-                </div>
-
-                <div>
-
-                  <label className="label-estilizada">
-                    Estado
-                  </label>
-
-                  <input
-                    className="input-estilizado"
-                    value={formData.address.state}
-                    onChange={(e) => handleAddressChange("state", e.target.value)}
-                  />
-
-                </div>
-
-              </div>
-
-            </section>
-            <div className="flex gap-4">
-
-              <button
-                type="button"
-                onClick={() => navigate('/agricultor/dashboard')}
-                className="w-full bg-gray-500 hover:bg-gray-400 text-white font-bold py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 text-xl"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 text-xl"
-              >
-                {isLoading ? "Salvando..." : "Salvar Alterações"}
-                <Save size={22} />
-              </button>
-
+              <p className="text-sm text-stone-600">
+                Atualize suas informações pessoais
+              </p>
             </div>
-          </form>
+          </div>
         </div>
-        <style>{`
+      </header>
 
-.input-estilizado{
-width:100%;
-padding:0.85rem 1rem;
-background:#f3f4f6;
-border:2px solid #e5e7eb;
-border-radius:1rem;
-outline:none;
-font-weight:500;
-transition:all .2s;
-}
+      {/* CONTENT */}
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* DADOS PESSOAIS */}
+          <section className={cardClass}>
+            <h2 className="text-xl font-bold text-stone-900 mb-6 flex items-center gap-2 border-b border-stone-200 pb-4">
+              <User size={22} className="text-green-700" />
+              Dados Pessoais
+            </h2>
 
-.input-estilizado:focus{
-background:#fff;
-border-color:#15803d;
-box-shadow:0 0 0 5px rgba(21,128,61,0.25);
-}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className={labelClass}>Nome</label>
 
-.label-estilizada{
-display:block;
-font-size:0.875rem;
-font-weight:600;
-color:#4b5563;
-margin-bottom:.4rem;
-}
+                <input
+                  className={inputClass}
+                  value={formData.first_name}
+                  onChange={(e) =>
+                    handleFieldChange("first_name", e.target.value)
+                  }
+                />
+              </div>
 
-`}</style>
+              <div>
+                <label className={labelClass}>Sobrenome</label>
 
-      </div>
+                <input
+                  className={inputClass}
+                  value={formData.last_name}
+                  onChange={(e) =>
+                    handleFieldChange("last_name", e.target.value)
+                  }
+                />
+              </div>
 
-    </>
-  )
+              <div className="md:col-span-2">
+                <label className={labelClass}>Nome de Apresentação</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.display_name}
+                  onChange={(e) =>
+                    handleFieldChange("display_name", e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Telefone</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.phone}
+                  onChange={(e) => handleFieldChange("phone", e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Email</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.email}
+                  onChange={(e) => handleFieldChange("email", e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* ATIVIDADE */}
+          <section className={cardClass}>
+            <h2 className="text-xl font-bold text-stone-900 mb-6 flex items-center gap-2 border-b border-stone-200 pb-4">
+              <Sprout size={22} className="text-green-700" />
+              Atividade Rural
+            </h2>
+
+            <div className="space-y-6">
+              <div>
+                <label className={labelClass}>Profissão</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.profession}
+                  onChange={(e) =>
+                    handleFieldChange("profession", e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Descrição</label>
+
+                <textarea
+                  rows={4}
+                  className={textareaClass}
+                  value={formData.description}
+                  onChange={(e) =>
+                    handleFieldChange("description", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* ENDEREÇO */}
+          <section className={cardClass}>
+            <h2 className="text-xl font-bold text-stone-900 mb-6 flex items-center gap-2 border-b border-stone-200 pb-4">
+              <MapPin size={22} className="text-green-700" />
+              Endereço
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className={labelClass}>CEP</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.address.zip_code}
+                  onChange={(e) =>
+                    handleAddressChange("zip_code", e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Número</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.address.number}
+                  onChange={(e) =>
+                    handleAddressChange("number", e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Complemento</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.address.complement || ""}
+                  onChange={(e) =>
+                    handleAddressChange("complement", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="md:col-span-3">
+                <label className={labelClass}>Rua</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.address.street}
+                  onChange={(e) =>
+                    handleAddressChange("street", e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Bairro</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.address.neighborhood}
+                  onChange={(e) =>
+                    handleAddressChange("neighborhood", e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Cidade</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.address.city}
+                  onChange={(e) => handleAddressChange("city", e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Estado</label>
+
+                <input
+                  className={inputClass}
+                  value={formData.address.state}
+                  onChange={(e) => handleAddressChange("state", e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* ACTIONS */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              type="button"
+              onClick={() => navigate("/agricultor/dashboard")}
+              className="flex-1 px-6 py-3 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-lg transition-colors font-medium "
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-6 py-3 bg-green-700 text-white hover:bg-green-800 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              {loading ? "Salvando..." : "Salvar Alterações"}
+
+              <Save size={18} />
+            </button>
+          </div>
+        </form>
+      </main>
+    </div>
+  );
 }

@@ -3,15 +3,19 @@ import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import usuarioRouter from './routers/farmerRouter';
-import enderecoRouter from './routers/addressRouters';
+import enderecoRouter from './routers/addressRouter';
 import authRouter from './routers/authRouter';
 import cookieParser from "cookie-parser";
+import productRouter from './routers/productRouter';
+import categoryRouter from './routers/categoryRouter';
+import paymentRouter from './routers/paymentRouter';
+import deliveryRouter from './routers/deliveryRouter';
 
 const app = express();
 
 // cors - liberar acesso do frontend
 app.use(cors({
-    origin: "http://localhost:3008",
+   origin: true,
     credentials: true
 }));
 
@@ -24,7 +28,10 @@ app.use(cookieParser());
 app.use("/auth", authRouter);
 app.use('/agricultores', usuarioRouter);
 app.use('/enderecos', enderecoRouter);
-
+app.use('/produtos', productRouter);
+app.use('/categoria', categoryRouter);
+app.use('/farmers', paymentRouter); // Rota para métodos de pagamento, importada dinamicamente para evitar problemas de dependência circular
+app.use('/delivery', deliveryRouter); // Rota para métodos de entrega, importada dinamicamente para evitar problemas de dependência circular
 // rota padrão
 app.use((req: Request, res: Response) => {
     res.send("API do AgroFamilia!");

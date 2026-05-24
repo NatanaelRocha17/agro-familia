@@ -14,5 +14,5 @@ export interface Farmer {
     confirm_password: string;
     status: string;
     gender: string;
-    Address: Address[];
+    address: Address | Address[];
 }

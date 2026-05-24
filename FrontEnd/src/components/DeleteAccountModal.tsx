@@ -36,7 +36,7 @@ export function DeleteAccountModal({
 
     // Após a exclusão, limpe o localStorage e redirecione para a página de login
     localStorage.clear();
-    window.location.href = '/agricultor/login';
+    window.location.href = '/login';
   };
 
   const resetAndClose = () => {

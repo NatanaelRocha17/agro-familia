@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000'; 
+const API_URL = 'http://192.168.0.121:3000';
 
 interface LoginData {
   email: string;
@@ -13,7 +13,7 @@ export const login = async (data: LoginData) => {
     `${API_URL}/auth/login`,
     data,
     {
-      withCredentials: true 
+      withCredentials: false
     }
   );
 
@@ -22,23 +22,30 @@ export const login = async (data: LoginData) => {
 
 // Função para logout, que revoga o refresh token no backend e remove o token de acesso 
 export const logout = async () => {
-  await axios.post(
-    `${API_URL}/auth/revoke`,
-    {},
-    {
-      withCredentials: true 
-    }
-  );
+  try {
+    await axios.post(
+      `${API_URL}/auth/revoke`,
+      {},
+      { withCredentials: false }
+    );
+  } finally {
+    localStorage.removeItem("farmer_token");
+    localStorage.removeItem("user");
+  }
 };
 
 // Função para refresh, que solicita um novo token de acesso usando o refresh token armazenado como cookie HTTP-only
 export const refresh = async () => {
-  const response = await axios.post( 
+  console.log("=== CHAMANDO REFRESH DO FRONT ===");
+
+  const response = await axios.post(
     `${API_URL}/auth/refresh`,
-    {}, 
+    {},
     {
-      withCredentials: true 
+      withCredentials: false
     }
   );
+
+  console.log("Resposta do refresh:", response.data);
   return response.data;
 };

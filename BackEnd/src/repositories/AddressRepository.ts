@@ -1,28 +1,36 @@
+import { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import pool from '../config/database';
-
 import { Address } from '../models/Address';
-import { Farmer } from '../models/Farmer';
 
-export const getAddressByFarmerId = async (farmer_id: number): Promise<Address | null> => { 
-    console.log("Buscando endereço para farmer_id:", farmer_id);
+// 1. GET
+export const getAddressByFarmerId = async (farmer_id: number): Promise<Address[]> => {
+  const [rows] = await pool.query(
+    `SELECT *
+     FROM Address
+     WHERE fk_farmer_id = ?
+     ORDER BY is_primary DESC, id ASC`,
+    [farmer_id]
+  );
 
-    const [rows] = await pool.query(
-        'SELECT * FROM Address WHERE fk_farmer_id = ?',
-        [farmer_id]
-    );
-
-    const addresses = rows as Address[];
-
-    return addresses.length ? addresses[0] : null;
+  return rows as Address[];
 };
 
-export const createAddress = async (id: Farmer, address: Address, conn: any = pool) => {
-  await conn.query(`
-    INSERT INTO Address
-    (fk_farmer_id, address_type, street, number, complement, neighborhood, city, state, zip_code, latitude, longitude, is_primary)
+// 2. CREATE
+export const createAddress = async (
+  farmer_id: number, 
+  address: Address, 
+  connection?: PoolConnection | Pool
+): Promise<number> => {
+  const db = connection || pool;
+
+  // Usamos ResultSetHeader para conseguir pegar o insertId do MySQL depois
+  const [result] = await db.query<ResultSetHeader>(
+    `INSERT INTO Address
+    (fk_farmer_id, address_type, street, number, complement,
+     neighborhood, city, state, zip_code, latitude, longitude, is_primary)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      id,
+      farmer_id,
       address.address_type,
       address.street,
       address.number,
@@ -36,48 +44,70 @@ export const createAddress = async (id: Farmer, address: Address, conn: any = po
       address.is_primary ? 1 : 0
     ]
   );
+
+  return result.insertId; // Retorna o ID gerado
 };
 
-export const updateAddress = async ( userId: Farmer, address: Address, connection: any) => { 
+// 3. UPDATE (Upsert)
+export const updateAddress = async (
+  farmer_id: number,
+  address: Partial<Address>, // Partial permite passar apenas os campos que vão mudar
+  connection?: PoolConnection | Pool
+): Promise<void> => {
+  const db = connection || pool; // Correção: Garantindo que db sempre exista
 
-  const [rows]: any = await connection.query( // Verifica se já existe um endereço para o agricultor
-    `SELECT id FROM Address WHERE fk_farmer_id = ?`,
-    [userId]
+  const [rows]: any = await db.query(
+    `SELECT id
+     FROM Address
+     WHERE fk_farmer_id = ?
+     AND address_type = 'residential'`,
+    [farmer_id]
   );
 
-  const fields = Object.keys(address) // Gerar dinamicamente os campos a serem atualizados
-    .map((key) => `${key} = ?`)
-    .join(', ');
+  const fields = Object.keys(address).map((key) => `${key} = ?`).join(", ");
+  const values = Object.values(address);
 
-  const values = Object.values(address); // Valores correspondentes aos campos
-
-  if (rows.length > 0) { // UPDATE (caso exista)
-    await connection.query(
-      `UPDATE Address SET ${fields} WHERE fk_farmer_id = ?`,
-      [...values, userId]
+  if (rows.length > 0) {
+    await db.query(
+      `UPDATE Address
+       SET ${fields}
+       WHERE fk_farmer_id = ?
+       AND address_type = 'residential'`,
+      [...values, farmer_id]
     );
   } else {
-    // INSERT (caso não exista)
-    await connection.query(
-      `INSERT INTO Address (fk_farmer_id, ${Object.keys(address).join(', ')})
-       VALUES (?, ${Object.keys(address).map(() => '?').join(', ')})`,
-      [userId, ...values]
+    await db.query(
+      `INSERT INTO Address (
+        fk_farmer_id,
+        address_type,
+        ${Object.keys(address).join(", ")}
+      )
+      VALUES (
+        ?,
+        'residential',
+        ${Object.keys(address).map(() => "?").join(", ")}
+      )`,
+      [farmer_id, ...values]
     );
   }
 };
 
-export const deleteAddress = async (id: Number): Promise<boolean> => {
-    const [result] = await pool.query(
-        `DELETE FROM Address WHERE id = ?`,
-        [id]
-    );
+// 4. DELETE
+export const deleteAddress = async (id: number): Promise<boolean> => {
+  // O repositório só executa. Se der erro de chave estrangeira (ER_ROW_IS_REFERENCED_2), 
+  // o try/catch do Controller vai capturar isso!
+  const [result] = await pool.query<ResultSetHeader>(
+    `DELETE FROM Address WHERE id = ?`,
+    [id]
+  );
 
-    return (result as any).affectedRows > 0;
+  return result.affectedRows > 0;
 };
 
 export default {
-    getAddressByFarmerId,
-    createAddress,
-    updateAddress,
-    deleteAddress
+  getAddressByFarmerId,
+  createAddress,
+  updateAddress,
+  deleteAddress
 };
+

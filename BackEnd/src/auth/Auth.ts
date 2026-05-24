@@ -1,75 +1,81 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
-import farmerRepository from '../repositories/farmerRepository';
-import { generateAccessToken, generateRefreshToken } from '../auth/jwt';
-import { hashToken } from '../utils/hash';
-import refreshTokenRepository from '../repositories/refreshTokenRepository';
+import { Request, Response } from "express";
+import { JwtPayload } from "jsonwebtoken";
+import { verifyRefreshToken, generateAccessToken, generateRefreshToken } from "./jwt";
+import { hashToken } from "../utils/hash";
+import refreshTokenRepository from "../repositories/refreshTokenRepository";
 
-export const loginAdmin = async (req: Request, res: Response) => {
-
-  const { email, password } = req.body;
-
+export const refresh = async (req: Request, res: Response) => {
   try {
-    const farmer = await farmerRepository.getFarmer(email); // busca o agricultor pelo email fornecido para verificar as credenciais
+    
+    console.log("=== REFRESH CHAMADO ===");
 
-    if (!farmer) {
-      return res.status(401).json({
-        message: 'Usuário ou senha incorreta'
-      });
+    const refreshToken = req.cookies.refreshToken;
+
+    console.log("COOKIE RECEBIDO:", refreshToken);
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token não encontrado" });
     }
 
-    const passwordValid = await bcrypt.compare(password, farmer.password_hash); // compara a senha fornecida com o hash armazenado no banco para autenticar o usuário
+    let payload: JwtPayload;
 
-    if (!passwordValid) {
-      return res.status(401).json({
-        message: 'Usuário ou senha incorreta'
-      });
+    try {
+      payload = verifyRefreshToken(refreshToken) as JwtPayload;
+    } catch {
+      return res.status(401).json({ message: "Refresh token inválido" });
     }
 
-    const accessToken = generateAccessToken(farmer.id, farmer.email); // gera o token de acesso para realizar requests autenticados
-    const refreshToken = generateRefreshToken(farmer.id, farmer.email); //gera o token de atualização para obter novos tokens de acesso sem precisar logar novamente
+    const tokenHash = hashToken(refreshToken);
 
-  
-    const tokenHash = hashToken(refreshToken); // gera o hash do token de atualização para segurança, evitando armazenar o token em texto plano no banco de dados
+    const storedToken = await refreshTokenRepository.findByTokenHash(tokenHash);
 
- 
-    await refreshTokenRepository.createRefreshToken({ // salva o hash do token de atualização no banco para validação futura
-      token_hash: tokenHash,
-      fk_farmer_id: farmer.id,
+    if (!storedToken) {
+      return res.status(401).json({ message: "Refresh token não reconhecido" });
+    }
+
+    if (storedToken.revoked) {
+      return res.status(401).json({ message: "Refresh token revogado" });
+    }
+
+    if (new Date(storedToken.expires_at) < new Date()) {
+      return res.status(401).json({ message: "Refresh token expirado" });
+    }
+
+    await refreshTokenRepository.revokeTokenByHash(tokenHash);
+
+    // 🔥 Agora TS sabe que payload NÃO é null
+    const userId = payload.id;
+    const email = payload.email;
+
+    const newRefreshToken = generateRefreshToken(userId, email);
+    const newTokenHash = hashToken(newRefreshToken);
+
+    await refreshTokenRepository.createRefreshToken({
+      token_hash: newTokenHash,
+      fk_farmer_id: userId,
       expires_at: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
       revoked: false
     });
 
-
-    res.cookie("refreshToken", refreshToken, { // envia o token de atualização como cookie HTTP-only para segurança
+    res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      secure: false, // COLOCAR TRUE EM PRODUÇÃO
+      secure: false,
       sameSite: "lax",
       maxAge: 4 * 24 * 60 * 60 * 1000
     });
 
-    
-    return res.json({ // retorna o token de acesso e informações básicas do usuário para o frontend após login bem-sucedido
-      message: "Login realizado com sucesso",
-      accessToken,
-      user: {
-        first_name: farmer.first_name,
-        email: farmer.email,
-        id: farmer.id
-      }
+    const newAccessToken = generateAccessToken(userId, email);
+
+    return res.json({
+      accessToken: newAccessToken
     });
 
   } catch (err: any) {
-    console.error("ERRO COMPLETO:", err);
+    console.error("Erro no refresh:", err);
 
     return res.status(500).json({
-      message: 'Erro interno do servidor',
-      error: err.message,
-      stack: err.stack
+      message: "Erro interno",
+      error: err.message
     });
   }
-};
-
-export default {
-  loginAdmin
 };
