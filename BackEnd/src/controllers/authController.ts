@@ -11,12 +11,14 @@ import refreshTokenRepository from "../repositories/refreshTokenRepository";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: false, // true em produção (HTTPS)
-  sameSite: "lax" as const, // 🔥 melhor compatibilidade local
+  secure: false,
+  sameSite: "lax" as const,
   maxAge: 4 * 24 * 60 * 60 * 1000
 };
 
-// LOGIN
+// Controlador para gerenciar os endpoints relacionados à autenticação, incluindo login, refresh de tokens e logout, utilizando JWT para autenticação e refresh tokens armazenados no banco de dados para segurança adicional
+
+// Login de administradores, onde o controlador lida com a autenticação e geração de tokens, verificando as credenciais fornecidas e emitindo um token de acesso e um refresh token se a autenticação for bem-sucedida, além de armazenar o refresh token no banco de dados para controle e segurança
 export const loginAdmin = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -67,9 +69,10 @@ export const loginAdmin = async (req: Request, res: Response) => {
   }
 };
 
-// REFRESH
+//  Renovação do token de acesso usando o refresh token armazenado como cookie HTTP-only, onde o controlador verifica o refresh token, revoga o token antigo para segurança, emite um novo token de acesso e um novo refresh token, e atualiza o cookie com o novo refresh token para manter a sessão do usuário ativa sem exigir um novo login
 export const refresh = async (req: Request & { cookies: any }, res: Response) => {
-  try {
+ try {
+
     const token = req.cookies?.refreshToken;
 
     if (!token) {
@@ -96,10 +99,8 @@ export const refresh = async (req: Request & { cookies: any }, res: Response) =>
       return res.status(401).json({ message: "Refresh inválido ou expirado" });
     }
 
-    // 🔥 Revoga por HASH (ajuste importante)
     await refreshTokenRepository.revokeTokenByHash(tokenHash);
 
-    // 🔁 Rotação
     const newRefreshToken = generateRefreshToken(decoded.id, decoded.email);
     const newAccessToken = generateAccessToken(decoded.id, decoded.email);
 
@@ -126,7 +127,7 @@ export const refresh = async (req: Request & { cookies: any }, res: Response) =>
   }
 };
 
-//LOGOUT
+// Logout, onde o controlador verifica o refresh token, revoga o token no banco de dados para impedir seu uso futuro, limpa o cookie do refresh token e retorna uma mensagem de sucesso, efetivamente desconectando o usuário e invalidando a sessão atual
 export const revoke = async (req: Request & { cookies: any }, res: Response) => {
   try {
     const token = req.cookies?.refreshToken;

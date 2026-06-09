@@ -19,9 +19,8 @@ export const getDeliveryTypes = async (): Promise<TypeDelivery[]> => {
   return rows as TypeDelivery[];
 };
 
-export const createDeliveryMethod = async (
-  farmerId: number,
-  deliveryData: DeliveryMethodInput
+// Cria um novo método de entrega para um agricultor específico, associando-o a um ou mais endereços (se fornecidos)
+export const createDeliveryMethod = async (farmerId: number,deliveryData: DeliveryMethodInput
 ): Promise<number> => {
   const {
     option_name,
@@ -61,6 +60,7 @@ export const createDeliveryMethod = async (
   return insertedRows; // Retornamos quantas linhas foram inseridas para o Controller saber
 };
 
+// Deleta um método de entrega específico por ID
 export const deleteDeliveryMethod = async (id: number): Promise<boolean> => {
   const [result] = await pool.query<ResultSetHeader>(
     'DELETE FROM Delivery_method_old WHERE id = ?', 
@@ -69,6 +69,7 @@ export const deleteDeliveryMethod = async (id: number): Promise<boolean> => {
   return result.affectedRows > 0;
 };
 
+// Obtém os métodos de entrega de um agricultor específico, incluindo os endereços relacionados
 export const getDeliveryMethodsByFarmerId = async (farmerId: number) => {
   const [rows] = await pool.query(
     `SELECT

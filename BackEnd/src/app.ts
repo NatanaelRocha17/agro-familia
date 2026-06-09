@@ -10,13 +10,19 @@ import productRouter from './routers/productRouter';
 import categoryRouter from './routers/categoryRouter';
 import paymentRouter from './routers/paymentRouter';
 import deliveryRouter from './routers/deliveryRouter';
+import client from 'prom-client';
+//import { setupMonitoring } from './monitoring';
 
 const app = express();
 
 // cors - liberar acesso do frontend
 app.use(cors({
-   origin: true,
-    credentials: true
+  origin: [
+    'http://localhost:3008',
+    'https://dubiously-bacteria-unroasted.ngrok-free.dev',
+    'http://192.168.0.121:3008'
+  ],
+  credentials: true
 }));
 
 app.use(helmet());
@@ -26,12 +32,13 @@ app.use(cookieParser());
 
 // ROTAS
 app.use("/auth", authRouter);
-app.use('/agricultores', usuarioRouter);
-app.use('/enderecos', enderecoRouter);
-app.use('/produtos', productRouter);
-app.use('/categoria', categoryRouter);
+app.use('/farmer', usuarioRouter);
+app.use('/address', enderecoRouter);
+app.use('/products', productRouter);
+app.use('/category', categoryRouter);
 app.use('/farmers', paymentRouter); // Rota para métodos de pagamento, importada dinamicamente para evitar problemas de dependência circular
 app.use('/delivery', deliveryRouter); // Rota para métodos de entrega, importada dinamicamente para evitar problemas de dependência circular
+
 // rota padrão
 app.use((req: Request, res: Response) => {
     res.send("API do AgroFamilia!");

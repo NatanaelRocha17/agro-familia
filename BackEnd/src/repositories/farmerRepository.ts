@@ -17,16 +17,15 @@ export interface FarmerInput {
   gender: string;
 }
 
+// Obtém uma lista paginada de agricultores, retornando os dados e o total para controle de paginação no frontend
 export const getAllFarmers = async (page: number, limit: number): Promise<{ data: Farmer[]; total: number }> => { 
   const offset = (page - 1) * limit;
 
-  // Traz os dados paginados
   const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM Farmer LIMIT ? OFFSET ?',
     [limit, offset]
   );
 
-  // Traz o total (tipamos como RowDataPacket para acessar o .total sem usar any)
   const [countResult] = await pool.query<RowDataPacket[]>(
     'SELECT COUNT(*) as total FROM Farmer'
   );
@@ -37,6 +36,7 @@ export const getAllFarmers = async (page: number, limit: number): Promise<{ data
   };
 };
 
+// Obtém um agricultor pelo email, usado principalmente para login e verificação de existência
 export const getFarmerByEmail = async (email: string): Promise<Farmer | null> => {
   const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM Farmer WHERE email = ?',
@@ -46,6 +46,7 @@ export const getFarmerByEmail = async (email: string): Promise<Farmer | null> =>
   return rows.length ? (rows[0] as Farmer) : null;
 };
 
+// Obtém um agricultor pelo ID, incluindo seu endereço residencial (se existir) usando JSON_OBJECT para retornar o endereço como um objeto JSON
 export const getFarmerById = async (id: number): Promise<any | null> => {
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT 
@@ -84,6 +85,7 @@ export const getFarmerById = async (id: number): Promise<any | null> => {
   return rows.length ? rows[0] : null;
 };
 
+// Cria um novo agricultor, retornando o ID gerado para que o Controller possa usar isso para criar o endereço residencial em seguida (se necessário)
 export const createFarmer = async (
   farmer: FarmerInput, 
   connection?: PoolConnection | Pool
@@ -112,9 +114,10 @@ export const createFarmer = async (
   return result.insertId;
 };
 
+// Cria um novo método de entrega para um agricultor específico, associando-o a um ou mais endereços (se fornecidos)
 export const updateFarmer = async (
   id: number, 
-  data: Partial<Farmer>, // Partial permite enviar apenas os campos que vão mudar
+  data: Partial<Farmer>, 
   connection?: PoolConnection | Pool
 ): Promise<void> => {
   if (Object.keys(data).length === 0) return;
@@ -130,6 +133,7 @@ export const updateFarmer = async (
   );
 };
 
+//  Deleta um agricultor por ID, retornando true se a exclusão foi bem-sucedida ou false se o agricultor não foi encontrado
 export const deleteFarmer = async (id: number): Promise<boolean> => {
   const [result] = await pool.query<ResultSetHeader>(
     'DELETE FROM Farmer WHERE id = ?',

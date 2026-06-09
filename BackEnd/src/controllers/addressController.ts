@@ -2,12 +2,12 @@ import { Request, Response } from "express";
 import addressRepository from "../repositories/addressRepository";
 import pool from "../config/database";
 
+// Controlador para gerenciar os endpoints relacionados aos endereços dos agricultores, incluindo criação, atualização, remoção e consulta de endereços associados a um agricultor específico
 
+// Obtém os endereços de um agricultor específico, retornando uma lista de endereços associados ao ID do agricultor fornecido na URL
 export const getByFarmerId = async (req: Request, res: Response) => {
-  // pega
   try {
     const farmer_id = Number(req.params.id);
-    console.log("ID recebido para busca:", farmer_id);
 
     const addresses = await addressRepository.getAddressByFarmerId(farmer_id);
 
@@ -24,11 +24,12 @@ export const getByFarmerId = async (req: Request, res: Response) => {
   }
 };
 
+
+// Cria  um novo endereço para um agricultor específico, recebendo os dados do endereço no corpo da requisição e retornando o ID do endereço criado ou uma mensagem de erro em caso de falha
 export const createAddress = async (req: Request, res: Response) => {
   try {
     const farmer_id = Number(req.params.id);
     const addressData = req.body;
-    console.log("Requisição recebida para criar endereço:", addressData);
 
     const insertId = await addressRepository.createAddress(farmer_id, addressData);
 
@@ -46,6 +47,7 @@ export const createAddress = async (req: Request, res: Response) => {
   }
 };
 
+// Atualiza um endereço específico por ID, recebendo os dados atualizados no corpo da requisição e retornando uma mensagem de sucesso ou erro dependendo do resultado da operação
 export const updateAddress = async (req: Request, res: Response) => {
   try {
     const farmer_id = Number(req.params.id);
@@ -77,10 +79,10 @@ export const updateAddress = async (req: Request, res: Response) => {
   }
 };
 
+// Deleta um endereço específico por ID, retornando uma mensagem de sucesso ou erro dependendo do resultado da operação, e tratando erros específicos de integridade referencial para informar o usuário caso o endereço esteja sendo utilizado em um método de entrega
 export const removeAddress = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-    console.log("ID recebido para deleção:", id);
 
     const success = await addressRepository.deleteAddress(id);
 

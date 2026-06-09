@@ -4,6 +4,7 @@ import farmerRepository from '../repositories/farmerRepository';
 import addressRepository from '../repositories/addressRepository';
 import pool from '../config/database';
 
+// Obtém os dados do agricultor autenticado (me), retornando as informações do agricultor associado ao token de autenticação presente na requisição, permitindo que os usuários possam visualizar e editar suas informações pessoais e de contato
 export const getAllFarmers = async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -32,6 +33,7 @@ export const getAllFarmers = async (req: Request, res: Response) => {
   }
 };
 
+// Obtém os dados do agricultor autenticado (me), retornando as informações do agricultor associado ao token de autenticação presente na requisição, permitindo que os usuários possam visualizar e editar suas informações pessoais e de contato
 export const getMeFarmer = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
@@ -60,6 +62,7 @@ export const getMeFarmer = async (req: Request, res: Response) => {
   }
 };
 
+// Cria um novo agricultor, recebendo os dados do agricultor no corpo da requisição e retornando o ID do agricultor criado ou uma mensagem de erro em caso de falha, permitindo que novos usuários possam se cadastrar na plataforma como agricultores
 export const createFarmer = async (req: Request, res: Response) => {
   try {
     const { password, confirm_password, address, ...rest } = req.body;
@@ -114,6 +117,7 @@ export const createFarmer = async (req: Request, res: Response) => {
   }
 };
 
+// Atualiza os dados de um agricultor específico, recebendo os dados atualizados no corpo da requisição e retornando uma mensagem de sucesso ou erro dependendo do resultado da operação, permitindo que os agricultores possam manter suas informações pessoais e de contato atualizadas na plataforma
 export const updateFarmer = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
@@ -161,6 +165,7 @@ export const updateFarmer = async (req: Request, res: Response) => {
   }
 };
 
+// Deleta um agricultor específico por ID, retornando uma mensagem de sucesso ou erro dependendo do resultado da operação, e tratando erros específicos de integridade referencial para informar o usuário caso o agricultor esteja sendo utilizado em pedidos ou outras entidades relacionadas
 export const removeFarmer = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);

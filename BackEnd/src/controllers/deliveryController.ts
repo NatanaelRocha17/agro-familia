@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import deliveryRepository from '../repositories/deliveryRepository';
 
+// Obtém os tipos de entrega disponíveis no sistema, retornando uma lista de tipos de entrega para que o frontend possa exibir opções ao agricultor ao configurar seus métodos de entrega
 export const getTypesDelivery = async (req: Request, res: Response) => {
   try {
     const types = await deliveryRepository.getDeliveryTypes();
@@ -18,12 +19,12 @@ export const getTypesDelivery = async (req: Request, res: Response) => {
   }
 };
 
+// Cria um novo método de entrega para um agricultor específico, recebendo os dados do método de entrega no corpo da requisição e retornando o ID do método de entrega criado ou uma mensagem de erro em caso de falha, permitindo que os agricultores possam configurar suas opções de entrega para os clientes
 export const createDelivery = async (req: Request, res: Response) => {
   try {
     const farmer_id = Number(req.params.id);
     const deliveryData = req.body;
 
-    console.log("Dados recebidos para criação de método de entrega:", deliveryData);
     
     // O repositório agora retorna a quantidade de linhas inseridas (útil para logs ou front)
     const insertedRows = await deliveryRepository.createDeliveryMethod(farmer_id, deliveryData);
@@ -42,6 +43,8 @@ export const createDelivery = async (req: Request, res: Response) => {
   }
 };
 
+
+// Obtém os métodos de entrega associados a um agricultor específico, retornando uma lista de métodos de entrega para o ID do agricultor fornecido na URL, permitindo que os agricultores possam visualizar e gerenciar seus métodos de entrega configurados
 export const getByFarmerIdDelivery = async (req: Request, res: Response) => {
   try {
     const farmer_id = Number(req.params.id);
@@ -60,6 +63,7 @@ export const getByFarmerIdDelivery = async (req: Request, res: Response) => {
   }
 };
 
+// Deleta um método de entrega específico por ID, retornando uma mensagem de sucesso ou erro dependendo do resultado da operação, e tratando erros específicos de integridade referencial para informar o usuário caso o método de entrega esteja sendo utilizado em pedidos ou outras entidades relacionadas
 export const removeDelivery = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);

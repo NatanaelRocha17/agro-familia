@@ -7,12 +7,7 @@ import refreshTokenRepository from "../repositories/refreshTokenRepository";
 export const refresh = async (req: Request, res: Response) => {
   try {
     
-    console.log("=== REFRESH CHAMADO ===");
-
     const refreshToken = req.cookies.refreshToken;
-
-    console.log("COOKIE RECEBIDO:", refreshToken);
-
     if (!refreshToken) {
       return res.status(401).json({ message: "Refresh token não encontrado" });
     }
@@ -43,7 +38,7 @@ export const refresh = async (req: Request, res: Response) => {
 
     await refreshTokenRepository.revokeTokenByHash(tokenHash);
 
-    // 🔥 Agora TS sabe que payload NÃO é null
+   // Gerar novos tokens
     const userId = payload.id;
     const email = payload.email;
 

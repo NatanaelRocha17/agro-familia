@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import paymentRepository from "../repositories/paymentRepository";
 
+
+// Obtém os métodos de pagamento aceitos por um agricultor específico, retornando uma lista de métodos de pagamento para o ID do agricultor fornecido na URL, permitindo que os agricultores possam visualizar e gerenciar seus métodos de pagamento configurados
 export const getByFarmerIdPayment = async (req: Request, res: Response) => {
   try {
     const farmerId = Number(req.params.farmerId);
@@ -28,12 +30,12 @@ export const getByFarmerIdPayment = async (req: Request, res: Response) => {
   }
 };
 
+// Atualiza os métodos de pagamento aceitos por um agricultor específico, recebendo uma lista de IDs de métodos de pagamento no corpo da requisição e atualizando os vínculos entre o agricultor e os métodos de pagamento no banco de dados, retornando uma mensagem de sucesso ou erro dependendo do resultado da operação, permitindo que os agricultores possam manter seus métodos de pagamento atualizados na plataforma
 export const updatePayment = async (req: Request, res: Response) => {
   try {
     const farmerId = Number(req.params.farmerId);
     const { paymentMethodIds } = req.body;
 
-    console.log("Atualizando métodos de pagamento:", { farmerId, paymentMethodIds });
 
     const currentPaymentMethods = await paymentRepository.getByFarmerId(farmerId);
     const currentPaymentMethodIds = currentPaymentMethods.map((pm: any) => pm.id);   
@@ -65,6 +67,7 @@ export const updatePayment = async (req: Request, res: Response) => {
   }
 };
 
+// Deleta um método de pagamento específico por ID, retornando uma mensagem de sucesso ou erro dependendo do resultado da operação, e tratando erros específicos de integridade referencial para informar o usuário caso o método de pagamento esteja sendo utilizado em pedidos ou outras entidades relacionadas
 export const removePayment = async (req: Request, res: Response) => {
   try {
     const farmerId = Number(req.params.farmerId);

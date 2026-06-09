@@ -2,6 +2,8 @@ import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/pro
 import pool from '../config/database';
 import { Product, CreateProductDTO, ProductWithFarmerDTO } from '../models/Product';
 
+
+// Obtém os produtos de um agricultor específico, retornando uma lista paginada de produtos com suas imagens associadas para exibição no frontend
 export const getByFarmerIdProduct = async (
   farmer_id: number, 
   page: number, 
@@ -49,6 +51,8 @@ export const getByFarmerIdProduct = async (
 
 };
 
+
+// Cria um novo produto para um agricultor específico, retornando o ID do produto criado para que o Controller possa usar isso para associar as imagens em seguida (se necessário)
 export const createProduct = async (
   connection: PoolConnection | Pool, 
   product: CreateProductDTO
@@ -67,6 +71,7 @@ export const createProduct = async (
   return result.insertId;
 };
 
+// Faz o upload de uma imagem para um produto específico, associando-a ao produto no banco de dados e retornando true se a operação foi bem-sucedida ou false caso contrário
 export const uploadProductImage = async (
   connection: PoolConnection | Pool, 
   productId: number, 
@@ -83,6 +88,8 @@ export const uploadProductImage = async (
   return result.affectedRows > 0;
 };
 
+
+// Atualiza o status de um produto específico, retornando true se a atualização foi bem-sucedida ou false se o produto não foi encontrado
 export const updateStatusProduct = async (productId: number, status: number): Promise<boolean> => {
   const [result] = await pool.query<ResultSetHeader>(
     `UPDATE Product SET status = ? WHERE id = ?`,
@@ -92,6 +99,8 @@ export const updateStatusProduct = async (productId: number, status: number): Pr
   return result.affectedRows > 0;
 };
 
+
+// Deleta um produto específico por ID, retornando true se a exclusão foi bem-sucedida ou false se o produto não foi encontrado
 export const deleteProduct = async (productId: number): Promise<boolean> => {
   const [result] = await pool.query<ResultSetHeader>(
     `DELETE FROM Product WHERE id = ?`,
@@ -100,6 +109,8 @@ export const deleteProduct = async (productId: number): Promise<boolean> => {
   return result.affectedRows > 0;
 };
 
+
+// Obtém um produto específico por ID, incluindo suas imagens associadas, retornando o produto completo para exibição no frontend ou null se o produto não for encontrado
 export const getProductById = async (id: number): Promise<Product | null> => {
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT 
@@ -145,6 +156,8 @@ export const getProductById = async (id: number): Promise<Product | null> => {
   } as Product;
 };
 
+
+// Atualiza um produto específico por ID, permitindo a atualização de seus campos e imagens associadas, retornando void e lançando um erro se a operação falhar
 export const updateProduct = async (id: number, data: any): Promise<void> => {
   const connection = await pool.getConnection();
 
@@ -194,6 +207,7 @@ export const updateProduct = async (id: number, data: any): Promise<void> => {
   }
 };
 
+// Atualiza um produto específico por ID, permitindo a atualização de seus campos e imagens associadas, retornando void e lançando um erro se a operação falhar
 export const getNearbyProducts = async (
   userLat: number, 
   userLng: number, 
@@ -318,6 +332,110 @@ export const getNearbyProducts = async (
   };
 };
 
+// Obtém as estatísticas de produtos de um agricultor específico, retornando o total de produtos, quantidade de produtos ativos e inativos para exibição no dashboard do agricultor
+export const getStatistics = async (id: number): Promise<any> => {
+  const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT 
+      COUNT(*) AS total_products,
+      SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS active_products,
+      SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS inactive_products
+  FROM AgroFamilia.Product
+  WHERE fk_farmer_id = ?`, [id]);
+
+    return rows[0];
+};
+
+// Obtém os produtos em destaque (showcase) de um agricultor específico, retornando uma lista paginada de produtos ativos com suas imagens e informações do agricultor para exibição na seção de destaque do perfil do agricultor
+export const getShowcaseProducts = async (
+  farmer_id: number, 
+  limit: number, 
+  offset: number
+): Promise<{ data: ProductWithFarmerDTO[]; total: number }> => {
+  
+  const [countRows] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) as total FROM Product WHERE fk_farmer_id = ? AND status = 1`,
+    [farmer_id]
+  );
+  const total = countRows[0]?.total || 0;
+
+  if (total === 0) {
+    return { data: [], total: 0 };
+  }
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+      p.id,
+      p.name,
+      p.description,
+      p.price,
+      p.sale_price,
+      p.product_origin,
+      p.status,
+      p.unit_measure,
+      c.name as category,
+      f.id as farmer_id, 
+      f.first_name, 
+      f.display_name, 
+      f.profession, 
+      f.phone,
+      a.city,
+      pi.id as image_id,
+      pi.image_url
+    FROM (
+      SELECT * FROM Product 
+      WHERE fk_farmer_id = ? AND status = 1
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    ) p
+    LEFT JOIN Product_image pi ON pi.fk_product_id = p.id
+    LEFT JOIN Category c ON c.id = p.fk_category_id
+    LEFT JOIN Farmer f ON f.id = p.fk_farmer_id
+    LEFT JOIN Address a ON a.fk_farmer_id = f.id AND a.is_primary = 1
+    ORDER BY p.id DESC, pi.display_order ASC`,
+    [farmer_id, limit, offset]
+  );
+
+  // 3. Mapeamento dos resultados (agrupando imagens e dados do agricultor)
+  const map = new Map<number, any>();
+  for (const row of rows) {
+    if (!map.has(row.id)) {
+      map.set(row.id, {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        price: row.price,
+        sale_price: row.sale_price,
+        unit_measure: row.unit_measure,
+        product_origin: row.product_origin,
+        status: row.status,
+        city: row.city,
+        category: row.category,
+        farmer: {
+          id: row.farmer_id,
+          first_name: row.first_name,
+          display_name: row.display_name,
+          profession: row.profession,
+          phone: row.phone
+        },
+        images: [],
+      });
+    }
+    
+    // Adiciona as imagens apenas se existirem
+    if (row.image_id) {
+      map.get(row.id).images.push({
+        id: row.image_id,
+        image_url: row.image_url
+      });
+    }
+  }
+
+  return {
+    data: Array.from(map.values()),
+    total
+  };
+};
+
 export default {
   getByFarmerIdProduct,
   createProduct,
@@ -326,7 +444,9 @@ export default {
   deleteProduct,
   getProductById,
   updateProduct,
-  getNearbyProducts
+  getNearbyProducts,
+  getStatistics,
+  getShowcaseProducts
 };
 
 

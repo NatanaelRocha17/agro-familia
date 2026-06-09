@@ -2,7 +2,7 @@ import { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import pool from '../config/database';
 import { Address } from '../models/Address';
 
-// 1. GET
+//  Obtém os endereços de um agricultor específico
 export const getAddressByFarmerId = async (farmer_id: number): Promise<Address[]> => {
   const [rows] = await pool.query(
     `SELECT *
@@ -15,15 +15,10 @@ export const getAddressByFarmerId = async (farmer_id: number): Promise<Address[]
   return rows as Address[];
 };
 
-// 2. CREATE
-export const createAddress = async (
-  farmer_id: number, 
-  address: Address, 
-  connection?: PoolConnection | Pool
-): Promise<number> => {
+// cria um novo endereço de entrega para o agricultor 
+export const createAddress = async (farmer_id: number, address: Address, connection?: PoolConnection | Pool): Promise<number> => {
   const db = connection || pool;
 
-  // Usamos ResultSetHeader para conseguir pegar o insertId do MySQL depois
   const [result] = await db.query<ResultSetHeader>(
     `INSERT INTO Address
     (fk_farmer_id, address_type, street, number, complement,
@@ -48,7 +43,7 @@ export const createAddress = async (
   return result.insertId; // Retorna o ID gerado
 };
 
-// 3. UPDATE (Upsert)
+// atualiza o endereço residencial do agricultor 
 export const updateAddress = async (
   farmer_id: number,
   address: Partial<Address>, // Partial permite passar apenas os campos que vão mudar
@@ -92,10 +87,8 @@ export const updateAddress = async (
   }
 };
 
-// 4. DELETE
+// deleta um endereço específico por ID (essa função é usada tanto para deletar um endereço residencial quanto um endereço de entrega, dependendo do ID passado)
 export const deleteAddress = async (id: number): Promise<boolean> => {
-  // O repositório só executa. Se der erro de chave estrangeira (ER_ROW_IS_REFERENCED_2), 
-  // o try/catch do Controller vai capturar isso!
   const [result] = await pool.query<ResultSetHeader>(
     `DELETE FROM Address WHERE id = ?`,
     [id]
