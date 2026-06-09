@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Loader2, Upload, X, Camera } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -14,7 +14,7 @@ import type {
   ProductImage,
 } from "../Models/Models";
 
-// 🔥 BASE64 → FILE
+// BASE64 → FILE
 function base64ToFile(base64: string, filename: string): File {
   const arr = base64.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
@@ -35,9 +35,8 @@ export function ProductEdit() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [errors, setErrors] = useState<Partial<ProductFormData>>({});
   const [categories, setCategories] = useState<GetAllCategories[]>([]);
-  const [removedImages, setRemovedImages] = useState<ProductImage[]>([]);
+
 
   async function loadCategories() {
     try {
@@ -79,13 +78,9 @@ export function ProductEdit() {
   const loadProduct = async () => {
     setIsLoading(true);
     try {
-      // Colocamos o 'as any' para ignorar o erro do TS temporariamente
       const response = (await getProductsById(Number(id))) as any;
 
-      // Extraímos o objeto real do produto de dentro do nosso novo padrão
       const product = response.data;
-
-      console.log("Produto carregado:", product);
 
       const images = Array.isArray(product?.images)
         ? product.images.map((img: ProductImage, index: number) => ({
@@ -105,7 +100,7 @@ export function ProductEdit() {
         production_method: product?.production_method || "",
         status: product?.status ?? 1,
         category_id: product?.category_id || 0,
-        images, // Agora temos a garantia de que será um array, mesmo que vazio!
+        images,
       });
     } catch (error) {
       console.error(error);
@@ -138,15 +133,30 @@ export function ProductEdit() {
     setDragIndex(null);
   };
 
-  // 🔥 VALIDAÇÃO
+  // VALIDAÇÃO POR TOASTS
   const validateForm = () => {
     if (!formData.name.trim()) {
-      setErrors({ name: "Nome é obrigatório" });
+      toast.warning("Nome do produto é obrigatório");
       return false;
     }
-
+    if (!formData.category_id || formData.category_id === 0) {
+      toast.warning("Categoria é obrigatória");
+      return false;
+    }
+    if (formData.price <= 0) {
+      toast.warning("Preço normal inválido ou não preenchido");
+      return false;
+    }
+    if (formData.sale_price <= 0) {
+      toast.warning("Preço de venda inválido ou não preenchido");
+      return false;
+    }
+    if (!formData.unit_measure) {
+      toast.warning("Unidade de medida é obrigatória");
+      return false;
+    }
     if (!formData.images || formData.images.length === 0) {
-      toast.error("Adicione pelo menos uma imagem");
+      toast.warning("Adicione pelo menos uma imagem");
       return false;
     }
 
@@ -191,20 +201,16 @@ export function ProductEdit() {
 
       const payload = {
         ...formData,
-
         images: processedImages,
       };
 
-      console.log("Payload FINAL:", payload);
-
       const result = await updateProduct(Number(id), payload);
 
-      toast.success(result.message || "MFD Produto atualizado com sucesso");
+      toast.success(result.message || "Produto atualizado com sucesso");
 
       navigate("/agricultor/produtos");
     } catch (error) {
       console.error(error);
-
       toast.error("Erro ao salvar produto");
     } finally {
       setIsSaving(false);
@@ -220,7 +226,7 @@ export function ProductEdit() {
     }));
   };
 
-  // 🔥 UPLOAD
+  // UPLOAD
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
 
@@ -240,7 +246,7 @@ export function ProductEdit() {
           ...prev.images,
           {
             image_url: reader.result as string,
-            public_id: "", // Será preenchido após upload
+            public_id: "",
             display_order: prev.images.length,
             isNew: true,
           },
@@ -252,23 +258,19 @@ export function ProductEdit() {
     e.target.value = "";
   };
 
-  // 🔥 REMOVE COM REORDER
+// Apenas remove a imagem do estado visual e reordena as restantes
   const handleRemoveImage = (index: number) => {
     setFormData((prev) => {
-      const imageToRemove = prev.images[index];
-
-      // Se imagem já existia no banco/cloudinary
-      if (!imageToRemove.isNew && imageToRemove.public_id) {
-        setRemovedImages((prevRemoved) => [...prevRemoved, imageToRemove]);
-      }
-
+      // Filtra tirando a imagem que foi clicada
       const filtered = prev.images.filter((_, i) => i !== index);
 
+      // Reordena o display_order das que sobraram
       const reordered = filtered.map((img, i) => ({
         ...img,
         display_order: i,
       }));
 
+      // Retorna o formulário atualizado
       return {
         ...prev,
         images: reordered,
@@ -294,7 +296,7 @@ export function ProductEdit() {
         <div className="container mx-auto px-4 py-4">
           <button
             onClick={() => navigate("/agricultor/produtos")}
-            className="flex items-center gap-2 text-stone-600 hover:text-stone-900 transition-colors"
+            className="flex items-center gap-2 text-stone-600 hover:text-stone-900 active:scale-95 transition-all w-fit"
           >
             <ArrowLeft size={20} />
             <span className="font-medium">Voltar</span>
@@ -336,14 +338,9 @@ export function ProductEdit() {
               value={formData.name}
               onChange={handleChange}
               maxLength={150}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.name ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
               placeholder="Ex: Tomate Orgânico"
             />
-            {errors.name && (
-              <p className="text-red-600 text-sm mt-1">{errors.name}</p>
-            )}
             <p className="text-sm text-stone-500 mt-1">
               {formData.name.length}/150 caracteres
             </p>
@@ -374,7 +371,7 @@ export function ProductEdit() {
           {/* Categoria */}
           <div className="mb-6">
             <label
-              htmlFor="category"
+              htmlFor="category_id"
               className="block font-semibold text-stone-900 mb-2"
             >
               Categoria <span className="text-red-600">*</span>
@@ -384,9 +381,7 @@ export function ProductEdit() {
               name="category_id"
               value={formData.category_id}
               onChange={handleChange}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.category ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
             >
               {categories.length === 0 ? (
                 <option value="">Carregando categorias...</option>
@@ -401,9 +396,6 @@ export function ProductEdit() {
                 </>
               )}
             </select>
-            {errors.category && (
-              <p className="text-red-600 text-sm mt-1">{errors.category}</p>
-            )}
           </div>
 
           {/* Preços */}
@@ -423,14 +415,9 @@ export function ProductEdit() {
                 onChange={handleChange}
                 step="0.01"
                 min="0"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                  errors.price ? "border-red-500" : "border-stone-300"
-                }`}
+                className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
                 placeholder="0.00"
               />
-              {errors.price && (
-                <p className="text-red-600 text-sm mt-1">{errors.price}</p>
-              )}
             </div>
 
             <div>
@@ -448,14 +435,9 @@ export function ProductEdit() {
                 onChange={handleChange}
                 step="0.01"
                 min="0"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                  errors.sale_price ? "border-red-500" : "border-stone-300"
-                }`}
+                className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
                 placeholder="0.00"
               />
-              {errors.sale_price && (
-                <p className="text-red-600 text-sm mt-1">{errors.sale_price}</p>
-              )}
             </div>
           </div>
 
@@ -472,9 +454,7 @@ export function ProductEdit() {
               name="unit_measure"
               value={formData.unit_measure}
               onChange={handleChange}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.unit_measure ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
             >
               <option value="kg">Quilograma (kg)</option>
               <option value="g">Grama (g)</option>
@@ -486,9 +466,6 @@ export function ProductEdit() {
               <option value="cx">Caixa (cx)</option>
               <option value="mc">Maço (mc)</option>
             </select>
-            {errors.unit_measure && (
-              <p className="text-red-600 text-sm mt-1">{errors.unit_measure}</p>
-            )}
           </div>
 
           {/* Origem do Produto */}
@@ -506,16 +483,9 @@ export function ProductEdit() {
               value={formData.product_origin}
               onChange={handleChange}
               maxLength={100}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.product_origin ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
               placeholder="Ex: Fazenda São José, Cidade - UF"
             />
-            {errors.product_origin && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.product_origin}
-              </p>
-            )}
             <p className="text-sm text-stone-500 mt-1">
               Local de produção ou origem do produto
             </p>
@@ -536,16 +506,9 @@ export function ProductEdit() {
               value={formData.production_method}
               onChange={handleChange}
               maxLength={150}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.production_method ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
               placeholder="Ex: Orgânico certificado, Agroecológico, Convencional"
             />
-            {errors.production_method && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.production_method}
-              </p>
-            )}
             <p className="text-sm text-stone-500 mt-1">
               Como o produto é cultivado ou produzido
             </p>
@@ -589,7 +552,6 @@ export function ProductEdit() {
               /3)
             </p>
 
-            {/* Botão de Upload */}
             {/* Botões de Upload */}
             {formData.images.length < 3 && (
               <div className="mb-4">
@@ -605,21 +567,21 @@ export function ProductEdit() {
                   />
                   <label
                     htmlFor="imageUploadGallery"
-                    className={`flex-1 inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-colors font-medium cursor-pointer ${
+                    className={`flex-1 inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-all active:scale-95 font-medium cursor-pointer ${
                       formData.images.length >= 3
                         ? "bg-stone-300 text-stone-500 cursor-not-allowed"
                         : "bg-green-700 text-white hover:bg-green-800"
                     }`}
                   >
                     <Upload size={20} />
-                      Escolher da Galeria
+                    Escolher da Galeria
                   </label>
 
-                  {/* Opção 2: Câmera */}
+                  {/* Opção 2: Câmera - Adicionado md:hidden */}
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment" // <-- A mágica que abre a câmera traseira!
+                    capture="environment"
                     onChange={handleImageUpload}
                     className="hidden"
                     id="imageUploadCamera"
@@ -627,7 +589,7 @@ export function ProductEdit() {
                   />
                   <label
                     htmlFor="imageUploadCamera"
-                    className={`flex-1 inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-colors font-medium cursor-pointer ${
+                    className={`flex-1 md:hidden inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-all active:scale-95 font-medium cursor-pointer ${
                       formData.images.length >= 3
                         ? "bg-stone-300 text-stone-500 cursor-not-allowed"
                         : "bg-stone-800 text-white hover:bg-stone-900 shadow-md"
@@ -637,47 +599,38 @@ export function ProductEdit() {
                     Tirar Foto
                   </label>
                 </div>
-                
-                {formData.images.length === 0 && (
-                  <p className="text-sm text-red-600 mt-2">
-                    Pelo menos uma imagem é obrigatória
-                  </p>
-                )}
               </div>
             )}
 
-         
             {/* Grid de Imagens */}
             {formData.images.length > 0 && (
               <div>
-                {formData.images?.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {formData.images.map((image, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          draggable
-                          onDragStart={() => handleDragStart(index)}
-                          onDragOver={handleDragOver}
-                          onDrop={() => handleDrop(index)}
-                          src={image.image_url}
-                          className="w-full h-48 object-cover rounded-lg border-2 border-stone-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(index)}
-                          // REMOVIDO: opacity-0 group-hover:opacity-100 transition-opacity
-                          className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 hover:bg-red-700 shadow-sm"
-                          title="Remover imagem"
-                        >
-                          <X size={18} />
-                        </button>
-                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs font-semibold">
-                          Imagem {index + 1}
-                        </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {formData.images.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        src={image.image_url}
+                        className="w-full h-48 object-cover rounded-lg border-2 border-stone-200 cursor-move"
+                        alt={`Produto ${index + 1}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 hover:bg-red-700 active:scale-90 shadow-sm transition-all"
+                        title="Remover imagem"
+                      >
+                        <X size={18} />
+                      </button>
+                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs font-semibold pointer-events-none">
+                        Imagem {index + 1}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -687,7 +640,7 @@ export function ProductEdit() {
             <button
               type="button"
               onClick={() => navigate("/agricultor/produtos")}
-              className="flex-1 px-6 py-3 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-lg transition-colors font-medium"
+              className="flex-1 px-6 py-3 bg-stone-100 text-stone-700 hover:bg-stone-200 active:scale-95 rounded-lg transition-all font-medium"
               disabled={isSaving}
             >
               Cancelar
@@ -695,7 +648,7 @@ export function ProductEdit() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-700 text-white hover:bg-green-800 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-700 text-white hover:bg-green-800 active:scale-95 rounded-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {isSaving ? (
                 <>

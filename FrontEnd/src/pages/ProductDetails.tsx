@@ -1,8 +1,7 @@
-import { useParams, Link } from "react-router";
+import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft,
   MapPin,
-  MessageCircle,
   ShoppingBasket,
   Truck,
   Calendar,
@@ -18,6 +17,7 @@ import {
   Receipt,
   CalendarDays,
   PackageCheck,
+  Map,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -34,7 +34,7 @@ export function ProductDetails() {
   );
   const [loading, setLoading] = useState(true);
 
-  const { addToCart, setIsOpen } = useCart();
+  const { addToCart } = useCart();
 
   function handleAddToCart() {
     if (!product) return;
@@ -51,7 +51,6 @@ export function ProductDetails() {
         .toFixed(2)
         .replace(".", ",")} por ${product.product.unit_measure}`,
     });
-
   }
 
   const deliveryTypeIcons: Record<number, any> = {
@@ -74,8 +73,6 @@ export function ProductDetails() {
 
   useEffect(() => {
     const buscarProduto = async () => {
-      console.log("Buscando detalhes do produto com ID:", id);
-
       let lat: number | null = null;
       let lng: number | null = null;
 
@@ -86,8 +83,6 @@ export function ProductDetails() {
 
         lat = Number(parsed.lat);
         lng = Number(parsed.lng);
-
-        console.log("Latitude e Longitude do usuário:", lat, lng);
       }
 
       try {
@@ -129,11 +124,6 @@ export function ProductDetails() {
     }
   }, [id]);
 
-  if (product) {
-    console.log(product.paymentMethods);
-    console.log(product.deliveryMethods);
-  }
-
   const images =
     product?.product?.images
       ?.slice(0, 3)
@@ -164,7 +154,6 @@ export function ProductDetails() {
           </Link>
 
           <div className="bg-white rounded-3xl shadow-lg border border-stone-100 overflow-hidden">
-        
             <div className="block md:hidden p-4 pb-0">
               <div className="flex items-center gap-2 mb-2">
                 <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
@@ -218,7 +207,6 @@ export function ProductDetails() {
 
               {/* Details Section */}
               <div className="p-6 md:p-10 flex flex-col h-full">
-                
                 <div className="hidden md:block">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
@@ -231,12 +219,9 @@ export function ProductDetails() {
                   </h1>
                 </div>
 
-
                 <div className="mb-8 prose prose-stone text-stone-600 leading-relaxed">
                   <p>{product.product.description}</p>
                 </div>
-
-            
 
                 <div className="flex flex-col gap-4 mt-auto bg-stone-50 p-6 rounded-2xl border border-stone-100">
                   <div className="flex items-end justify-between mb-2">
@@ -281,8 +266,6 @@ export function ProductDetails() {
                       Adicionar à Cesta
                     </button>
                   </div>
-
-                  
                 </div>
 
                 {/* Informações Adicionais */}
@@ -344,7 +327,6 @@ export function ProductDetails() {
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
@@ -477,7 +459,9 @@ export function ProductDetails() {
                 <p className="text-stone-600 leading-relaxed mb-3">
                   {product?.farmer.description}
                 </p>
-                <div className="flex flex-wrap gap-3 text-sm">
+
+                {/* Container do Endereço */}
+                <div className="flex flex-wrap items-center gap-3 text-sm mb-4">
                   <div className="flex items-center gap-2 text-stone-600">
                     <MapPin size={16} className="text-green-600" />
                     <span>
@@ -486,6 +470,7 @@ export function ProductDetails() {
                       {product?.farmer.address.neighborhood}
                     </span>
                   </div>
+
                   <div className="flex items-center gap-2 text-stone-600">
                     <span className="text-green-600">•</span>
                     <span>
@@ -493,6 +478,33 @@ export function ProductDetails() {
                       {product?.farmer.address.state}
                     </span>
                   </div>
+
+                  {/* Botão/Link para o Google Maps usando Coordenadas */}
+                  {product?.farmer.address?.latitude &&
+                    product?.farmer.address?.longitude && (
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${product.farmer.address.latitude},${product.farmer.address.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-green-700 hover:text-green-800 font-medium hover:underline transition-colors ml-1"
+                        title="Abrir no Google Maps"
+                      >
+                        <Map size={16} />
+                        <span>Ver no mapa</span>
+                      </a>
+                    )}
+                </div>
+
+                {/* Container da Vitrine */}
+                <div className="pt-4 border-t border-stone-100 text-stone-600 text-sm">
+                  Conheça mais produtos desse agricultor visitando a{" "}
+                  <Link
+                    to={`/vitrine/${product?.farmer.id}`}
+                    className="text-green-700 font-bold hover:text-green-800 hover:underline transition-colors"
+                  >
+                    vitrine de {product?.farmer.display_name}
+                  </Link>
+                  .
                 </div>
               </div>
             </div>

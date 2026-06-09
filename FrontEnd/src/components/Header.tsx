@@ -1,11 +1,8 @@
 import { Menu, ShoppingBasket, Sprout, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
-
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CardContext";
-
-/* IMPORTA O COMPONENTE CERTO */
 import { CartSheet } from "./CartSheet";
 
 export function Header() {
@@ -29,7 +26,7 @@ export function Header() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           {/* ESQUERDA */}
           <div className="flex items-center gap-4">
-            {/* Esconde o menu sanduíche se for página de produto (pois ele ficaria vazio) */}
+            {/* Esconde o menu  se for página de produto */}
             {!isProductPage && (
               <button
                 type="button"
@@ -41,10 +38,10 @@ export function Header() {
             )}
 
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-green-700 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">A</span>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <Sprout className="text-green-700" size={32} />
               </div>
-              <span className="text-xl font-bold text-green-900 hidden sm:block">
+              <span className="text-xl font-bold text-green-900">
                 Agro
                 <span className="text-stone-600">Família</span>
               </span>
@@ -53,16 +50,32 @@ export function Header() {
 
           {/* MENU DESKTOP */}
           <nav className="hidden md:flex items-center gap-8">
-            {/* Tudo aqui dentro some na página de produto */}
             {!isProductPage && (
               <>
-                <a href="#inicio" className="hover:text-green-700 transition-colors">Início</a>
-                <a href="#produtos" className="hover:text-green-700 transition-colors">Produtos</a>
-                <a href="#sobre" className="hover:text-green-700 transition-colors">Sobre Nós</a>
-                
+                <a
+                  href="#inicio"
+                  className="hover:text-green-700 transition-colors"
+                >
+                  Início
+                </a>
+                <a
+                  href="#produtos"
+                  className="hover:text-green-700 transition-colors"
+                >
+                  Produtos
+                </a>
+                <a
+                  href="#sobre"
+                  className="hover:text-green-700 transition-colors"
+                >
+                  Sobre Nós
+                </a>
+
                 <Link
                   to={
-                    isAuthenticated ? "/agricultor/dashboard" : "/agricultor/login"
+                    isAuthenticated
+                      ? "/agricultor/dashboard"
+                      : "/agricultor/login"
                   }
                   className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
                 >
@@ -93,8 +106,8 @@ export function Header() {
         {isMobileMenuOpen && !isProductPage && (
           <div className="md:hidden border-t border-stone-200 bg-white">
             <nav className="container mx-auto px-4 py-4 flex flex-col gap-2">
-              <a 
-                href="#inicio" 
+              <a
+                href="#inicio"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-2 hover:bg-stone-50 rounded-lg"
               >
@@ -109,8 +122,8 @@ export function Header() {
                 Produtos
               </a>
 
-              <a 
-                href="#sobre" 
+              <a
+                href="#sobre"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-2 hover:bg-stone-50 rounded-lg"
               >

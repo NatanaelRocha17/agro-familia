@@ -4,7 +4,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home.tsx";
 import { Login } from "./pages/Login.tsx";
-import { FarmerRegister } from "./pages/Register.tsx";
+import { RegisterForm } from "./pages/RegisterForm.tsx";
 import { Dashboard } from "./pages/Dash.tsx";
 import { FarmerProfile } from "./pages/FarmerProfile.tsx";
 import { ProductManagement } from "./pages/productManager.tsx";
@@ -13,6 +13,7 @@ import { ProductEdit } from "./pages/ProductEdit.tsx";
 import { ProductDetails } from "./pages/ProductDetails.tsx";
 import { FarmerSettings } from "./pages/FarmerSetting.tsx";
 import type { JSX } from "react";
+import { FarmerShowcase } from "./pages/FarmerShowcase.tsx";
 
 function isAuthenticated() {
   const token = localStorage.getItem("farmer_token");
@@ -22,7 +23,9 @@ function isAuthenticated() {
 }
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
-  return isAuthenticated() ? children : <Navigate to="/agricultor/login" replace />;
+  return isAuthenticated()
+    ? children
+    : <Navigate to="/agricultor/login" replace />;
 }
 
 export const router = createBrowserRouter([
@@ -32,6 +35,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> }, // pública
       { path: "produto/:id", element: <ProductDetails /> }, // pública
+      { path: "vitrine/:farmerId", element: <FarmerShowcase /> }, // pública
     ],
   },
 
@@ -39,7 +43,7 @@ export const router = createBrowserRouter([
     path: "/agricultor",
     children: [
       { path: "login", element: <Login /> }, // pública
-      { path: "register", element: <FarmerRegister /> }, // pública
+      { path: "register", element: <RegisterForm /> }, // pública
 
       {
         path: "dashboard",

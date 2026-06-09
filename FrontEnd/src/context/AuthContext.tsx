@@ -14,11 +14,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
 });
 
-export function AuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     const token = localStorage.getItem("farmer_token");
     const user = localStorage.getItem("user");
@@ -39,9 +35,7 @@ export function AuthProvider({
   }
 
   return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, login, logout }}
-    >
+    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

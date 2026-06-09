@@ -43,11 +43,6 @@ export function Login() {
         password,
       });
 
-      console.log(
-        'Resposta do login:',
-        data
-      );
-
       // Atualiza contexto + localStorage
       authLogin(
         data.accessToken,

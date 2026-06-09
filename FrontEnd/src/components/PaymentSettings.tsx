@@ -67,7 +67,6 @@ export function PaymentSettings() {
     }
   };
 
-  console.log(methods);
   if (loading) {
     return <Loading />;
   }

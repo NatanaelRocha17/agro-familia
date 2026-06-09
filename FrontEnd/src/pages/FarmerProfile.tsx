@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, User, MapPin, Save, Sprout } from "lucide-react";
 import { toast } from "sonner";
-import { putchFarmer, getFarmerMe } from "../services/farmer";
+import { getFarmerMe, patchFarmer } from "../services/farmer";
 import type { Farmer, FarmerUpdate } from "../Models/Models";
 import { Loading } from "../components/Loading";
 import { buscarCep } from "../services/locationService";
@@ -11,9 +11,7 @@ export function FarmerProfile() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-
   const [originalData, setOriginalData] = useState<FarmerUpdate | null>(null);
-
   const [formData, setFormData] = useState<FarmerUpdate>({
     id: "",
     first_name: "",
@@ -66,15 +64,12 @@ export function FarmerProfile() {
       .replace(/(\d{5})(\d)/, "$1-$2")
       .slice(0, 9);
 
- async function fetchFarmerData() {
+    // Função para buscar os dados do agricultor logado e formatar os campos de CPF, telefone e CEP para exibição
+  async function fetchFarmerData() {
     try {
-      // 1. Colocamos o 'as any' temporário para o TS não reclamar
       const response = (await getFarmerMe()) as any;
-      
-      // 2. Extraímos o objeto real do agricultor que o backend enviou
-      const farmerData = response.data; 
+      const farmerData = response.data;
 
-      // 3. Agora usamos 'farmerData' ao invés de 'data'
       const formattedData: FarmerUpdate = {
         ...farmerData,
         cpf: formatCPF(farmerData?.cpf || ""),
@@ -95,6 +90,7 @@ export function FarmerProfile() {
     }
   }
 
+  // Verificação de autenticação e carregamento dos dados do agricultor ao montar o componente
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -106,11 +102,15 @@ export function FarmerProfile() {
     fetchFarmerData();
   }, [navigate]);
 
+  // Função para lidar com mudanças nos campos do formulário, aplicando formatações específicas para CPF, telefone e CEP
   const handleFieldChange = (field: keyof Farmer, value: string) => {
     let formattedValue = value;
 
     if (field === "phone") {
       formattedValue = formatPhone(value);
+    }
+    if (field === "cpf") {
+      formattedValue = formatCPF(value);
     }
 
     setFormData((prev) => ({
@@ -119,6 +119,7 @@ export function FarmerProfile() {
     }));
   };
 
+  // Função para lidar com mudanças nos campos de endereço, aplicando formatação para CEP e buscando os dados do CEP quando o campo de CEP for preenchido completamente
   const handleAddressChange = async (
     field: keyof Farmer["address"],
     value: string,
@@ -128,7 +129,6 @@ export function FarmerProfile() {
     if (field === "zip_code" && value.replace(/\D/g, "").length === 8) {
       try {
         const dadosCep = await buscarCep(formattedValueCep);
-        console.log("Dados do CEP:", dadosCep); // Verifique os dados retornados
         setFormData((prev) => ({
           ...prev,
           address: {
@@ -149,11 +149,12 @@ export function FarmerProfile() {
       ...prev,
       address: {
         ...prev.address,
-        [field]: value,
+        [field]: field === "zip_code" ? formattedValueCep : value,
       },
     }));
   };
 
+  // Função para comparar os dados original e atual do formulário e retornar apenas os campos que foram alterados, incluindo a lógica para campos aninhados como o endereço
   function getChangedFields(original: any, current: any): any {
     const changes: any = {};
 
@@ -182,8 +183,84 @@ export function FarmerProfile() {
     return changes;
   }
 
+  // FUNÇÃO DE VALIDAÇÃO
+  const validateForm = () => {
+    // Dados Pessoais
+    if (!formData.first_name?.trim()) {
+      toast.warning("O nome é obrigatório");
+      return false;
+    }
+    if (!formData.last_name?.trim()) {
+      toast.warning("O sobrenome é obrigatório");
+      return false;
+    }
+    if (!formData.display_name?.trim()) {
+      toast.warning("O nome de exibição é obrigatório");
+      return false;
+    }
+    if (!formData.cpf?.trim()) {
+      toast.warning("O CPF é obrigatório");
+      return false;
+    }
+    if (!formData.phone?.trim()) {
+      toast.warning("O telefone é obrigatório");
+      return false;
+    }
+    if (!formData.email?.trim()) {
+      toast.warning("O e-mail é obrigatório");
+      return false;
+    }
+    if (!formData.gender) {
+      toast.warning("Selecione o seu sexo");
+      return false;
+    }
+
+    // Atividade Rural
+    if (!formData.profession?.trim()) {
+      toast.warning("A profissão é obrigatória");
+      return false;
+    }
+    if (!formData.description?.trim()) {
+      toast.warning("A descrição da atividade é obrigatória");
+      return false;
+    }
+
+    // Endereço
+    const addr = formData.address;
+    if (!addr.zip_code?.trim()) {
+      toast.warning("O CEP é obrigatório");
+      return false;
+    }
+    if (!addr.number?.trim()) {
+      toast.warning("O número do endereço é obrigatório");
+      return false;
+    }
+    if (!addr.street?.trim()) {
+      toast.warning("A rua é obrigatória");
+      return false;
+    }
+    if (!addr.neighborhood?.trim()) {
+      toast.warning("O bairro é obrigatório");
+      return false;
+    }
+    if (!addr.city?.trim()) {
+      toast.warning("A cidade é obrigatória");
+      return false;
+    }
+    if (!addr.state) {
+      toast.warning("Selecione o estado (UF)");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Chama a validação antes de qualquer coisa
+    if (!validateForm()) return;
+
     setLoading(true);
 
     try {
@@ -226,7 +303,7 @@ export function FarmerProfile() {
         return;
       }
 
-      await putchFarmer(changes);
+      await patchFarmer(changes);
 
       toast.success("Perfil atualizado com sucesso!");
 
@@ -282,7 +359,9 @@ export function FarmerProfile() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className={labelClass}>Nome</label>
+                <label className={labelClass}>
+                  Nome <span className="text-red-500">*</span>
+                </label>
 
                 <input
                   className={inputClass}
@@ -294,7 +373,9 @@ export function FarmerProfile() {
               </div>
 
               <div>
-                <label className={labelClass}>Sobrenome</label>
+                <label className={labelClass}>
+                  Sobrenome <span className="text-red-500">*</span>
+                </label>
 
                 <input
                   className={inputClass}
@@ -305,9 +386,10 @@ export function FarmerProfile() {
                 />
               </div>
 
+              {/* Omiti o resto do formulário para brevidade, mas o JSX continua exatamente igual ao seu original a partir daqui. A única diferença visual que sugiro é adicionar o `<span className="text-red-500">*</span>` nas labels obrigatórias acima. */}
+
               <div className="md:col-span-2">
                 <label className={labelClass}>Nome de Apresentação</label>
-
                 <input
                   className={inputClass}
                   value={formData.display_name}
@@ -318,8 +400,20 @@ export function FarmerProfile() {
               </div>
 
               <div>
-                <label className={labelClass}>Telefone</label>
+                <label className={labelClass}>
+                  CPF <span className="text-red-500">*</span>
+                </label>
+                <input
+                  className={inputClass}
+                  value={formData.cpf}
+                  onChange={(e) => handleFieldChange("cpf", e.target.value)}
+                />
+              </div>
 
+              <div>
+                <label className={labelClass}>
+                  Telefone <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.phone}
@@ -327,9 +421,10 @@ export function FarmerProfile() {
                 />
               </div>
 
-              <div>
-                <label className={labelClass}>Email</label>
-
+              <div className="md:col-span-2">
+                <label className={labelClass}>
+                  Email <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.email}
@@ -348,8 +443,9 @@ export function FarmerProfile() {
 
             <div className="space-y-6">
               <div>
-                <label className={labelClass}>Profissão</label>
-
+                <label className={labelClass}>
+                  Profissão <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.profession}
@@ -360,8 +456,9 @@ export function FarmerProfile() {
               </div>
 
               <div>
-                <label className={labelClass}>Descrição</label>
-
+                <label className={labelClass}>
+                  Descrição <span className="text-red-500">*</span>
+                </label>
                 <textarea
                   rows={4}
                   className={textareaClass}
@@ -383,8 +480,9 @@ export function FarmerProfile() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className={labelClass}>CEP</label>
-
+                <label className={labelClass}>
+                  CEP <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.address.zip_code}
@@ -395,8 +493,9 @@ export function FarmerProfile() {
               </div>
 
               <div>
-                <label className={labelClass}>Número</label>
-
+                <label className={labelClass}>
+                  Número <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.address.number}
@@ -408,7 +507,6 @@ export function FarmerProfile() {
 
               <div>
                 <label className={labelClass}>Complemento</label>
-
                 <input
                   className={inputClass}
                   value={formData.address.complement || ""}
@@ -419,8 +517,9 @@ export function FarmerProfile() {
               </div>
 
               <div className="md:col-span-3">
-                <label className={labelClass}>Rua</label>
-
+                <label className={labelClass}>
+                  Rua <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.address.street}
@@ -431,8 +530,9 @@ export function FarmerProfile() {
               </div>
 
               <div>
-                <label className={labelClass}>Bairro</label>
-
+                <label className={labelClass}>
+                  Bairro <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.address.neighborhood}
@@ -443,8 +543,9 @@ export function FarmerProfile() {
               </div>
 
               <div>
-                <label className={labelClass}>Cidade</label>
-
+                <label className={labelClass}>
+                  Cidade <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.address.city}
@@ -453,8 +554,9 @@ export function FarmerProfile() {
               </div>
 
               <div>
-                <label className={labelClass}>Estado</label>
-
+                <label className={labelClass}>
+                  Estado <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputClass}
                   value={formData.address.state}
@@ -480,7 +582,6 @@ export function FarmerProfile() {
               className="flex-1 px-6 py-3 bg-green-700 text-white hover:bg-green-800 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
             >
               {loading ? "Salvando..." : "Salvar Alterações"}
-
               <Save size={18} />
             </button>
           </div>

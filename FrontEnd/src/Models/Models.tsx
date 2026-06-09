@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 
-// 🔹 Address
+// Address
 export type Address = {
   id: number;
   address_type?: string;
@@ -17,7 +17,7 @@ export type Address = {
   is_primary?: boolean;
 };
 
-// 🔹 Farmer
+// Farmer
 export interface Farmer {
   id: string;
   first_name: string;
@@ -41,19 +41,17 @@ export type FarmerUpdate = Partial<Omit<Farmer, "id" | "address">> & {
   address: Partial<Address>;
 };
 
-// 🔹 Product Image (UNIFICADO)
+// Product Image (UNIFICADO)
 export interface ProductImage {
   id?: number;
   image_url: string;
   display_order?: number;
   uploaded_at?: Date;
-  public_id?: string; // 🔥 campo do cloudinary
-
-  // 🔥 campo do front
+  public_id?: string; 
   isNew?: boolean;
 }
 
-// 🔹 Base Product
+// Base Product
 export type BaseProduct = {
   name: string;
   description?: string;
@@ -65,7 +63,7 @@ export type BaseProduct = {
   status: number;
 };
 
-// 🔹 Produto (API)
+// Produto (API)
 export interface Product extends BaseProduct {
   id: string;
   images?: ProductImage[];
@@ -83,13 +81,13 @@ export interface Product extends BaseProduct {
   distance_km?: number; 
 }
 
-// 🔹 DTO (envio pra API)
+// DTO (envio pra API)
 export type CreateProductDTO = BaseProduct & {
   fk_farmer_id?: string;
   fk_category_id?: number;
 };
 
-// 🔹 Form (FRONT)
+// Form (FRONT)
 export type ProductFormData = BaseProduct & {
   category?: string;
   category_id: number;

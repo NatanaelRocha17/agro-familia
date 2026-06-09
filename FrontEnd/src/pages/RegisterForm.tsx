@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   User,
@@ -19,11 +19,11 @@ import {
 import { postFarmer } from "../services/farmer";
 import type { Farmer } from "../Models/Models";
 
-export function FarmerRegister() {
+export function RegisterForm() {
   const navigate = useNavigate();
 
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [locationCaptured, setLocationCaptured] = useState(false); // Novo estado para o feedback visual do botão
+  const [locationCaptured, setLocationCaptured] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -89,19 +89,45 @@ export function FarmerRegister() {
       .replace(/(\d{5})(\d)/, "$1-$2")
       .slice(0, 9);
 
+      
+  const validateForm = () => {
+    // Dados Pessoais
+    if (!farmerData.first_name.trim()) { toast.warning("O nome é obrigatório"); return false; }
+    if (!farmerData.last_name.trim()) { toast.warning("O sobrenome é obrigatório"); return false; }
+    if (!farmerData.display_name.trim()) { toast.warning("O nome de exibição é obrigatório"); return false; }
+    if (!farmerData.cpf.trim()) { toast.warning("O CPF é obrigatório"); return false; }
+    if (!farmerData.phone.trim()) { toast.warning("O telefone é obrigatório"); return false; }
+    if (!farmerData.email.trim()) { toast.warning("O e-mail é obrigatório"); return false; }
+    if (!farmerData.gender) { toast.warning("Selecione o seu sexo"); return false; }
+
+    // Atividade Rural
+    if (!farmerData.profession.trim()) { toast.warning("A profissão é obrigatória"); return false; }
+    if (!farmerData.description.trim()) { toast.warning("A descrição da atividade é obrigatória"); return false; }
+
+    // Endereço
+    const addr = farmerData.address;
+    if (!addr.zip_code.trim()) { toast.warning("O CEP é obrigatório"); return false; }
+    if (!addr.number.trim()) { toast.warning("O número do endereço é obrigatório"); return false; }
+    if (!addr.street.trim()) { toast.warning("A rua é obrigatória"); return false; }
+    if (!addr.neighborhood.trim()) { toast.warning("O bairro é obrigatório"); return false; }
+    if (!addr.city.trim()) { toast.warning("A cidade é obrigatória"); return false; }
+    if (!addr.state) { toast.warning("Selecione o estado (UF)"); return false; }
+
+    // Senha
+    if (!farmerData.password) { toast.warning("A senha é obrigatória"); return false; }
+    if (farmerData.password.length < 8) { toast.warning("A senha deve ter pelo menos 8 caracteres"); return false; }
+    if (farmerData.password !== farmerData.confirm_password) { toast.warning("As senhas não coincidem"); return false; }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validação intercepta o envio
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
-
-    if (farmerData.password !== farmerData.confirm_password) {
-      setIsSubmitting(false);
-      return toast.error("As senhas não coincidem");
-    }
-
-    if (farmerData.password!.length < 8) {
-      setIsSubmitting(false);
-      return toast.error("A senha deve ter pelo menos 8 caracteres");
-    }
 
     let updatedAddress = { ...farmerData.address };
 
@@ -204,7 +230,7 @@ export function FarmerRegister() {
             longitude: pos.coords.longitude,
           },
         }));
-        setLocationCaptured(true); // Atualiza o estado para mudar a cor do botão
+        setLocationCaptured(true);
         toast.success("Localização capturada do seu local com precisão!");
         setIsGettingLocation(false);
       },
@@ -222,8 +248,7 @@ export function FarmerRegister() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col gap-4">
             <button
-            onClick={() => navigate("/agricultor/login")}
-   
+              onClick={() => navigate("/agricultor/login")}
               className="flex items-center gap-2 text-stone-700 hover:text-stone-900 transition-colors w-fit"
             >
               <ArrowLeft size={20} />
@@ -256,7 +281,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Nome *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.first_name}
                   onChange={(e) => aoMudarCampo("first_name", e.target.value)}
@@ -266,7 +290,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Sobrenome *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.last_name}
                   onChange={(e) => aoMudarCampo("last_name", e.target.value)}
@@ -278,7 +301,6 @@ export function FarmerRegister() {
                   Nome de Exibição (Como você é conhecido) *
                 </label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.display_name}
                   onChange={(e) =>
@@ -290,7 +312,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>CPF *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.cpf}
                   onChange={(e) => aoMudarCampo("cpf", e.target.value)}
@@ -300,7 +321,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Telefone *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.phone}
                   onChange={(e) => aoMudarCampo("phone", e.target.value)}
@@ -311,7 +331,6 @@ export function FarmerRegister() {
                 <label className={labelClass}>E-mail *</label>
                 <input
                   type="email"
-                  required
                   className={inputClass}
                   value={farmerData.email}
                   onChange={(e) => aoMudarCampo("email", e.target.value)}
@@ -321,7 +340,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Sexo *</label>
                 <select
-                  required
                   className={inputClass}
                   value={farmerData.gender}
                   onChange={(e) => aoMudarCampo("gender", e.target.value)}
@@ -346,7 +364,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Profissão / Especialidade *</label>
                 <input
-                  required
                   className={inputClass}
                   placeholder="Ex: Produtor de Hortaliças Orgânicas"
                   value={farmerData.profession}
@@ -357,7 +374,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Descrição da Atividade *</label>
                 <textarea
-                  required
                   rows={4}
                   className={textareaClass}
                   placeholder="Conte sobre seus produtos e sua propriedade..."
@@ -383,7 +399,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>CEP *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.address.zip_code}
                   onChange={(e) =>
@@ -395,7 +410,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Número *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.address.number}
                   onChange={(e) => handleAddressChange("number", e.target.value)}
@@ -417,7 +431,6 @@ export function FarmerRegister() {
               <div className="md:col-span-3">
                 <label className={labelClass}>Rua / Endereço *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.address.street}
                   onChange={(e) => handleAddressChange("street", e.target.value)}
@@ -427,7 +440,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Bairro *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.address.neighborhood}
                   onChange={(e) =>
@@ -439,7 +451,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Cidade *</label>
                 <input
-                  required
                   className={inputClass}
                   value={farmerData.address.city}
                   onChange={(e) => handleAddressChange("city", e.target.value)}
@@ -449,7 +460,6 @@ export function FarmerRegister() {
               <div>
                 <label className={labelClass}>Estado (UF) *</label>
                 <select
-                  required
                   className={inputClass}
                   value={farmerData.address.state}
                   onChange={(e) => handleAddressChange("state", e.target.value)}
@@ -539,7 +549,6 @@ export function FarmerRegister() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    required
                     className={inputClass}
                     value={farmerData.password}
                     onChange={(e) => aoMudarCampo("password", e.target.value)}
@@ -558,7 +567,6 @@ export function FarmerRegister() {
                 <label className={labelClass}>Confirmar Senha *</label>
                 <input
                   type={showPassword ? "text" : "password"}
-                  required
                   className={inputClass}
                   value={farmerData.confirm_password}
                   onChange={(e) =>

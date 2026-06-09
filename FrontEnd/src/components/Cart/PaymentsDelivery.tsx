@@ -23,8 +23,6 @@ export const PaymentsDelivery: React.FC<PaymentsDeliveryProps> = ({
 
       try {
         setLoading(true);
-
-        // Colocamos o 'as any[]' para o TS não reclamar das tipagens antigas
         const [paymentResponse, deliveryResponse] = (await Promise.all([
           getPaymentMethodsFarmer(Number(farmerId)),
           listDeliveryMethodsByFarmer(Number(farmerId)),

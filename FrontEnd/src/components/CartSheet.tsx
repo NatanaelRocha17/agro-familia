@@ -222,7 +222,8 @@ Total estimado: R$ ${selectedTotal.toFixed(2).replace(".", ",")}`;
                     onClick={() => setShowFarmerInfo(true)}
                     className="text-sm text-amber-900 font-medium hover:underline"
                   >
-                    Clique aqui e veja os métodos de pagamento e entrega
+                    Clique aqui e veja os métodos de pagamento e entrega que ele
+                    oferece
                   </button>
                 </div>
               ) : (

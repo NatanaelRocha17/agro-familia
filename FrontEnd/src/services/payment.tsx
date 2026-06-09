@@ -1,10 +1,8 @@
 import api from "./api";
 
-// Função para adicionar um método de pagamento para um agricultor
 
 // Função para atualizar um método de pagamento para um agricultor
 export const putPaymentMethod = async (farmerId: number, paymentData: any): Promise<any> => {
-    console.log('Enviando dados para atualização de métodos de pagamento:', paymentData);
     const response = await api.put(`/farmers/${farmerId}/payment-methods`, { paymentMethodIds: paymentData.paymentMethodIds });
     return response.data;
 }

@@ -15,19 +15,18 @@ export const getDeliveryMethods = async (): Promise<TypeDelivery[]> => {
     return response.data;
 }
 
-export const getAndress = async (farmerId: number) => {
-    const response = await api.get(`/enderecos/${farmerId}`);
+export const getAddress = async (farmerId: number) => {
+    const response = await api.get(`/address/${farmerId}`);
     return response.data;
 }
 
-export const postAndress = async (farmerId: number, deliveryData: any) => {
-    console.log("Dados do endereço enviados para a API:", deliveryData);
-    const response = await api.post(`enderecos/create/${farmerId}`, deliveryData);
+export const postAddress = async (farmerId: number, deliveryData: any) => {
+    const response = await api.post(`/address/create/${farmerId}`, deliveryData);
     return response.data;
 }
 
-export const deleteAndress = async (addressId: number) => {
-    const response = await api.delete(`/enderecos/delete/${addressId}`);
+export const deleteAddress = async (addressId: number) => {
+    const response = await api.delete(`/address/delete/${addressId}`);
     return response.data;
 }
 
@@ -43,7 +42,6 @@ export const listDeliveryMethodsByFarmer = async (farmerId: number) => {
 }
 
 export const deleteDeliveryMethod = async (id: number) => {
-    console.log("ID do método de entrega a ser deletado:", id);
     const response = await api.delete(`/delivery/method/${id}`);
     return response.data;
 }

@@ -24,7 +24,7 @@ export const getProductsByFarmerId = async (
   limit = 10,
 ): Promise<PaginatedProducts> => {
   const response = await api.get(
-    `/produtos/agricultor/${farmer_id}?page=${page}&limit=${limit}`,
+    `/products/farmer/${farmer_id}?page=${page}&limit=${limit}`,
   );
 
   return response.data;
@@ -32,8 +32,7 @@ export const getProductsByFarmerId = async (
 
 // Função para obter um produto por ID
 export const getProductsById = async (id: number): Promise<Product> => {
-  const response = await api.get(`/produtos/${id}`);
-  console.log("Resposta da API:", response.data);
+  const response = await api.get(`/products/${id}`);
   return response.data;
 };
 
@@ -59,21 +58,12 @@ export const uploadProductImage = async (
   }
 
   const data = await res.json();
-
-  console.log("Resposta do Cloudinary:", data);
   return {
     image_url: data.secure_url,
     public_id: data.public_id,
   };
 };
 
-/*export const deleteProductImage = async (publicId: string) => {
-
-  const response = await api.delete(`/produtos/imagem/${publicId}`);
-
-  return response.data;
-
-};*/
 
 // Função para criar um novo produto
 export const createProduct = async (
@@ -81,7 +71,7 @@ export const createProduct = async (
   productData: Omit<Product, "id" | "created_at" | "updated_at">,
 ): Promise<Product> => {
   const response = await api.post(
-    `/produtos/cadastrar/${farmer_id}`,
+    `/products/create/${farmer_id}`,
     productData,
   );
   return response.data;
@@ -93,7 +83,7 @@ export const updateProductStatus = async (
   productData: Partial<Omit<Product, "id" | "created_at" | "updated_at">>,
 ): Promise<Product> => {
   const response = await api.put(
-    `/produtos/atualizarstatus/${productId}`,
+    `/products/update-status/${productId}`,
     productData,
   );
   return response.data;
@@ -101,7 +91,7 @@ export const updateProductStatus = async (
 
 // Função para deletar um produto por ID
 export const deleteProduct = async (productId: number): Promise<boolean> => {
-  const response = await api.delete(`/produtos/deletar/${productId}`);
+  const response = await api.delete(`/products/delete/${productId}`);
   return response.data;
 };
 
@@ -110,7 +100,7 @@ export const updateProduct = async (
   productId: number,
   productData: Partial<Omit<Product, "id" | "created_at" | "updated_at">>,
 ): Promise<any> => {
-  const response = await api.put(`/produtos/${productId}`, productData);
+  const response = await api.put(`/products/${productId}`, productData);
   return response.data;
 };
 
@@ -147,7 +137,7 @@ export const getAllProductsNearby = async (
     params.append("search", searchTerm);
   }
 
-  const response = await api.get(`/produtos?${params.toString()}`);
+  const response = await api.get(`/products?${params.toString()}`);
   return response.data;
 };
 
@@ -157,7 +147,7 @@ export const getFullProductData = async (
   lat: number,
   lng: number,
 ): Promise<any> => {
-  const response = await api.get(`/produtos/full/${product_id}`, {
+  const response = await api.get(`/products/full/${product_id}`, {
     params: {
       lat,
       lng,
@@ -169,7 +159,28 @@ export const getFullProductData = async (
 
 // Função para obter todas as categorias de produtos
 export const getAllCategories = async (): Promise<GetAllCategories[]> => {
-  console.log("Chamando getAllCategories");
-  const response = await api.get(`/categoria`);
+  const response = await api.get(`/category`);
   return response.data;
 };
+
+// Função para remover uma imagem do Cloudinary associada a um produto
+export const getProductStatistics = async (farmer_id: number): Promise<any> => {
+  const response = await api.get(`/products/statistics/${farmer_id}`);
+  return response.data;
+};
+
+// Função para obter produtos de um agricultor para exibição na vitrine, com paginação e validação de parâmetros
+export const getShowcaseProducts = async (
+  farmer_id: number, 
+  page = 1,
+  limit = 10
+): Promise<any> => {  
+  const response = await api.get(`/products/showcase/${farmer_id}`, {
+    params: {
+      page: page,
+      limit: limit
+    }
+  });
+  
+  return response.data;
+}

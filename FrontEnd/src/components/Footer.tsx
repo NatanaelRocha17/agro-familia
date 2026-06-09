@@ -26,7 +26,7 @@ export function Footer() {
             <ul className="space-y-3 text-green-100 text-sm">
               <li className="flex items-start gap-2">
                 <MapPin size={18} className="shrink-0 mt-0.5" />
-                <span>Rua das Flores, 123<br />Centro, São Paulo - SP</span>
+                <span>Rua da Misericórdia, 0000<br />Centro, Vitória da Conquista - BA</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail size={18} className="shrink-0" />

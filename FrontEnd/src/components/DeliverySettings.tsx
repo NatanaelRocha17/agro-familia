@@ -3,12 +3,12 @@ import { Plus, Truck, Trash2, Save, X, Clock, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import {
   createDeliveryMethod,
-  deleteAndress,
+  deleteAddress,
   deleteDeliveryMethod,
-  getAndress,
+  getAddress,
   getDeliveryMethods,
   listDeliveryMethodsByFarmer,
-  postAndress,
+  postAddress,
 } from "../services/delivery";
 import { Loading } from "./Loading";
 import type { Address, Farmer } from "../Models/Models";
@@ -55,8 +55,6 @@ export function DeliverySettings() {
     address_ids: [] as number[],
   });
 
-  console.log(form);
-
   const [addressForm, setaddressForm] = useState({
     id: "",
     address_type: "",
@@ -71,24 +69,23 @@ export function DeliverySettings() {
     longitude: 0,
     is_primary: false,
   });
-  console.log(addressForm);
 
   const resetAddressForm = () => {
-  setaddressForm({
-    id: "",
-    address_type: "",
-    street: "",
-    number: "",
-    complement: "",
-    neighborhood: "",
-    city: "",
-    state: "",
-    zip_code: "",
-    latitude: 0,
-    longitude: 0,
-    is_primary: false,
-  });
-};
+    setaddressForm({
+      id: "",
+      address_type: "",
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+      zip_code: "",
+      latitude: 0,
+      longitude: 0,
+      is_primary: false,
+    });
+  };
 
   useEffect(() => {
     loadData();
@@ -105,19 +102,16 @@ export function DeliverySettings() {
       }
 
       // 2. Carrega os endereços
-      const addressResponse = (await getAndress(id)) as any;
+      const addressResponse = (await getAddress(id)) as any;
       if (addressResponse?.data) {
         setListAddresses(addressResponse.data);
       }
-      console.log("Endereços carregados:", addressResponse?.data);
 
       // 3. Carrega os métodos já configurados
       const methodsResponse = (await listDeliveryMethodsByFarmer(id)) as any;
       if (methodsResponse?.data) {
         setMethods(methodsResponse.data);
       }
-      console.log("Métodos de entrega carregados:", methodsResponse?.data);
-      
     } catch {
       toast.error("Erro ao carregar entregas.");
     } finally {
@@ -143,51 +137,45 @@ export function DeliverySettings() {
     setOpen(true);
   };
 
+  // salvar tanto criação quanto edição, pois a API é a mesma
   const handleSave = async () => {
-  try {
-    const requiresAddress = ["1", "3", "4"].includes(form.type_id);
+    try {
+      const requiresAddress = ["1", "3", "4"].includes(form.type_id);
 
-    if (requiresAddress && form.address_ids.length === 0) {
-      toast.error(
-        "Selecione pelo menos um endereço de retirada."
-      );
+      if (requiresAddress && form.address_ids.length === 0) {
+        toast.error("Selecione pelo menos um endereço de retirada.");
 
-      return;
+        return;
+      }
+
+      if (form.option_name.length === 0) {
+        toast.error("O nome da opção de entrega é obrigatório.");
+
+        return;
+      }
+
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      const payload = {
+        option_name: form.option_name,
+        type_id: form.type_id,
+        estimated_time: form.estimated_time,
+        cost: Number(form.cost),
+        notes: form.notes,
+        address_ids: form.address_ids,
+      };
+
+      const res = await createDeliveryMethod(user.id, payload);
+
+      toast.success(res.message);
+
+      setOpen(false);
+
+      loadData();
+    } catch {
+      toast.error("Erro ao salvar.");
     }
-
-    if (form.option_name.length === 0) {
-      toast.error(
-        "O nome da opção de entrega é obrigatório."
-      );
-
-      return;
-    }
-
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-
-    const payload = {
-      option_name: form.option_name,
-      type_id: form.type_id,
-      estimated_time: form.estimated_time,
-      cost: Number(form.cost),
-      notes: form.notes,
-      address_ids: form.address_ids,
-    };
-
-    console.log("Payload enviado para a API:", payload);
-
-    const res = await createDeliveryMethod(user.id, payload);
-
-    toast.success(res.message);
-
-    setOpen(false);
-
-    loadData();
-
-  } catch {
-    toast.error("Erro ao salvar.");
-  }
-};
+  };
 
   const formatZipCode = (v: string) =>
     v
@@ -195,6 +183,7 @@ export function DeliverySettings() {
       .replace(/(\d{5})(\d)/, "$1-$2")
       .slice(0, 9);
 
+  // Função para lidar com mudanças nos campos de endereço, incluindo formatação de CEP e busca automática de dados do CEP
   const habdleOnChangeAddress = async (
     field: keyof Farmer["address"],
     value: string,
@@ -236,37 +225,38 @@ export function DeliverySettings() {
     return <Loading />;
   }
 
- const handleSaveAddress = async () => {
-  try {
-    const userId = JSON.parse(localStorage.getItem("user") || "{}").id;
 
-    const payload = {
-      address_type: "pickup_point",
-      street: addressForm.street,
-      number: addressForm.number,
-      neighborhood: addressForm.neighborhood,
-      complement: addressForm.complement,
-      city: addressForm.city,
-      state: addressForm.state,
-      zip_code: addressForm.zip_code.replace(/\D/g, ""),
-    };
+  // salvar endereço dentro do formulário de criação/edição de método de entrega, associando o endereço criado ao método de entrega em questão, permitindo que o agricultor adicione novos pontos de retirada diretamente durante a configuração do método de entrega
+  const handleSaveAddress = async () => {
+    try {
+      const userId = JSON.parse(localStorage.getItem("user") || "{}").id;
 
-    await postAndress(userId, payload);
+      const payload = {
+        address_type: "pickup_point",
+        street: addressForm.street,
+        number: addressForm.number,
+        neighborhood: addressForm.neighborhood,
+        complement: addressForm.complement,
+        city: addressForm.city,
+        state: addressForm.state,
+        zip_code: addressForm.zip_code.replace(/\D/g, ""),
+      };
 
-    await loadData();
+      await postAddress(userId, payload);
 
-    resetAddressForm();
+      await loadData();
 
+      resetAddressForm();
 
-    toast.success("Endereço adicionado com sucesso.");
+      toast.success("Endereço adicionado com sucesso.");
 
-    setShowAddressForm(false);
+      setShowAddressForm(false);
+    } catch {
+      toast.error("Erro ao adicionar endereço.");
+    }
+  };
 
-  } catch {
-    toast.error("Erro ao adicionar endereço.");
-  }
-};
-
+  // Permite marcar/desmarcar um endereço como ponto de retirada para o método de entrega, atualizando a lista de IDs de endereços selecionados no formulário
   const toggleAddressSelection = (id: number) => {
     setForm((prev) => {
       const alreadySelected = prev.address_ids.includes(id);
@@ -278,35 +268,29 @@ export function DeliverySettings() {
     });
   };
 
-const deleteAddress = async (id: number) => {
-  console.log("ID do endereço a ser deletado:", id);
+  // Permite remover um endereço tanto da lista de endereços do método de entrega quanto do formulário, garantindo que o endereço seja deletado do banco de dados e removido da interface do usuário
+  const removeAddress = async (id: number) => {
+    try {
+      const res = await deleteAddress(id);
 
-  try {
-    const res = await deleteAndress(id);
+      setListAddresses((prev) => prev.filter((addr) => addr.id !== id));
 
-    setListAddresses((prev) =>
-      prev.filter((addr) => addr.id !== id)
-    );
+      setForm((prev) => ({
+        ...prev,
+        address_ids: prev.address_ids.filter((addrId) => addrId !== id),
+      }));
 
-    setForm((prev) => ({
-      ...prev,
-      address_ids: prev.address_ids.filter(
-        (addrId) => addrId !== id
-      ),
-    }));
+      toast.success(res.message);
+    } catch (error: any) {
+      console.error("Erro ao deletar endereço:", error);
 
-    toast.success(res.message);
+      toast.error(
+        error?.response?.data?.message || "Erro ao remover endereço.",
+      );
+    }
+  };
 
-  } catch (error: any) {
-    console.error("Erro ao deletar endereço:", error);
-
-    toast.error(
-      error?.response?.data?.message ||
-      "Erro ao remover endereço."
-    );
-  }
-};
-
+  // Permite deletar um método de entrega, removendo-o do banco de dados e atualizando a lista de métodos exibidos para o usuário, garantindo que a interface reflita a mudança imediatamente após a exclusão
   const deleteMethod = async (id: number) => {
     try {
       const res = await deleteDeliveryMethod(id);
@@ -531,7 +515,6 @@ const deleteAddress = async (id: number) => {
 
                   {listAndresses.length > 0 && (
                     <div className="space-y-2 mb-4">
-     
                       {listAndresses.map((addr) => (
                         <label
                           key={addr.id}
@@ -541,7 +524,6 @@ const deleteAddress = async (id: number) => {
                               : "bg-white border-2 border-stone-200 hover:border-stone-300"
                           }`}
                         >
-                   
                           <input
                             type="checkbox"
                             checked={form.address_ids.includes(addr.id)}
@@ -567,8 +549,7 @@ const deleteAddress = async (id: number) => {
                             ) : (
                               <button
                                 onClick={() => {
-                                  deleteAddress(addr.id);
-                                  console.log("Endereço excluído:", addr.id);
+                                  removeAddress(addr.id);
                                 }}
                                 className="ml-auto flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition-colors font-medium shrink-0"
                                 title="Excluir produto"
@@ -676,12 +657,12 @@ const deleteAddress = async (id: number) => {
                               habdleOnChangeAddress("number", e.target.value)
                             }
                             className={`w-full border rounded-lg px-4 py-3 text-sm bg-white transition-all
-          ${
-            !addressForm.number
-              ? "border-red-300 focus:ring-red-500"
-              : "border-stone-300 focus:ring-green-600"
-          }
-          focus:outline-none focus:ring-2`}
+                            ${
+                              !addressForm.number
+                                ? "border-red-300 focus:ring-red-500"
+                                : "border-stone-300 focus:ring-green-600"
+                            }
+                            focus:outline-none focus:ring-2`}
                           />
 
                           {!addressForm.number && (
@@ -725,13 +706,13 @@ const deleteAddress = async (id: number) => {
                               habdleOnChangeAddress("city", e.target.value)
                             }
                             className={`w-full border rounded-lg px-4 py-3 text-sm bg-white transition-all
-          ${
-            !addressForm.city
-              ? "border-red-300 focus:ring-red-500"
-              : "border-stone-300 focus:ring-green-600"
-          }
-          focus:outline-none focus:ring-2`}
-                          />
+                            ${
+                              !addressForm.city
+                                ? "border-red-300 focus:ring-red-500"
+                                : "border-stone-300 focus:ring-green-600"
+                            }
+                            focus:outline-none focus:ring-2`}
+                                            />
 
                           {!addressForm.city && (
                             <p className="text-red-500 text-xs mt-1">
@@ -799,18 +780,16 @@ const deleteAddress = async (id: number) => {
                   <label className="text-sm font-semibold text-stone-700 block mb-2">
                     Valor (R$) *
                   </label>
-                 
- 
+
                   <input
                     type="number"
                     value={form.cost}
                     onChange={(e) => setForm({ ...form, cost: e.target.value })}
                     className="w-full border border-stone-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
                   />
-                                   <p className="text-yellow-500 text-xs mt-1">
-Deixe 0 para definir como grátis                            
-</p>
-
+                  <p className="text-yellow-500 text-xs mt-1">
+                    Deixe 0 para definir como grátis
+                  </p>
                 </div>
               </div>
 

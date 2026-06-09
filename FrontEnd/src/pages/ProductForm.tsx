@@ -1,15 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import {
-  ArrowLeft,
-  Save,
-  Loader2,
-  Upload,
-  X,
-  Camera,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Save, Loader2, Upload, X, Camera } from "lucide-react";
 import { toast } from "sonner";
 import type {
   GetAllCategories,
@@ -23,8 +14,7 @@ import {
 } from "../services/product";
 import { Loading } from "../components/Loading";
 
-// 🔥 base64 → File
-function base64ToFile(base64: string, filename: string): File {
+export function base64ToFile(base64: string, filename: string): File {
   const arr = base64.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
   const bstr = atob(arr[1]);
@@ -45,7 +35,6 @@ export function ProductForm() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [errors, setErrors] = useState<Partial<Product>>({});
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [categories, setCategories] = useState<GetAllCategories[]>([]);
 
@@ -149,21 +138,34 @@ export function ProductForm() {
     setDragIndex(null);
   };
 
+  // 🔥 VALIDAÇÃO POR TOASTS
   const validateForm = () => {
-    const newErrors: any = {};
-
-    if (!formData.name.trim()) newErrors.name = "Nome é obrigatório";
-    if (formData.price < 0) newErrors.price = "Preço inválido";
-    if (formData.sale_price < 0) newErrors.sale_price = "Preço inválido";
-    if (!formData.unit_measure) newErrors.unit_measure = "Obrigatório";
-
-    if (formData.images.length === 0) {
-      toast.error("Adicione pelo menos uma imagem");
+    if (!formData.name.trim()) {
+      toast.warning("Nome do produto é obrigatório");
+      return false;
+    }
+    if (!formData.category_id || formData.category_id === 0) {
+      toast.warning("Categoria é obrigatória");
+      return false;
+    }
+    if (formData.price <= 0) {
+      toast.warning("Preço normal inválido ou não preenchido");
+      return false;
+    }
+    if (formData.sale_price <= 0) {
+      toast.warning("Preço de venda inválido ou não preenchido");
+      return false;
+    }
+    if (!formData.unit_measure) {
+      toast.warning("Unidade de medida é obrigatória");
+      return false;
+    }
+    if (!formData.images || formData.images.length === 0) {
+      toast.warning("Adicione pelo menos uma imagem");
       return false;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -174,10 +176,8 @@ export function ProductForm() {
     setIsSaving(true);
 
     try {
-      const userStr = localStorage.getItem("user");
+      const userStr = localStorage.getItem("farmer_user"); // corrigido para farmer_user para evitar bugs de ID
       const user = JSON.parse(userStr || "{}");
-
-      console.log("Carregando produtos para agricultor ID:", user.id);
 
       const uploadedImages: { image_url: string }[] = [];
 
@@ -240,12 +240,6 @@ export function ProductForm() {
         );
         updatedProduct;
       } else {
-        // 🔥 Chamada para cadastrar no backend
-        console.log(
-          "Enviando dados para criação de produto:",
-          user.id,
-          productData,
-        );
         await createProduct(user.id, productData as any);
       }
 
@@ -266,8 +260,6 @@ export function ProductForm() {
       ...prev,
       [name]: name.includes("price") ? Number(value) : value,
     }));
-
-    console.log("Form data updated:", formData);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -301,7 +293,7 @@ export function ProductForm() {
     }));
   };
 
-  if (isLoading) return Loading;
+  if (isLoading) return <Loading />;
 
   const formatCurrency = (value: number) => {
     return (value / 100).toLocaleString("pt-BR", {
@@ -317,7 +309,7 @@ export function ProductForm() {
         <div className="container mx-auto px-4 py-4">
           <button
             onClick={() => navigate("/agricultor/produtos")}
-            className="flex items-center gap-2 text-stone-600 hover:text-stone-900 transition-colors"
+            className="flex items-center gap-2 text-stone-600 hover:text-stone-900 active:scale-95 transition-all w-fit"
           >
             <ArrowLeft size={20} />
             <span className="font-medium">Voltar para Produtos</span>
@@ -359,14 +351,9 @@ export function ProductForm() {
               value={formData.name}
               onChange={handleChange}
               maxLength={150}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.name ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
               placeholder="Ex: Tomate Orgânico"
             />
-            {errors.name && (
-              <p className="text-red-600 text-sm mt-1">{errors.name}</p>
-            )}
             <p className="text-sm text-stone-500 mt-1">
               {formData.name.length}/150 caracteres
             </p>
@@ -414,14 +401,9 @@ export function ProductForm() {
                     price: Number(onlyNumbers),
                   }));
                 }}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                  errors.price ? "border-red-500" : "border-stone-300"
-                }`}
+                className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
                 placeholder="R$ 0,00"
               />
-              {errors.price && (
-                <p className="text-red-600 text-sm mt-1">{errors.price}</p>
-              )}
             </div>
 
             <div>
@@ -443,14 +425,9 @@ export function ProductForm() {
                     sale_price: Number(onlyNumbers),
                   }));
                 }}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                  errors.sale_price ? "border-red-500" : "border-stone-300"
-                }`}
+                className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
                 placeholder="R$ 0,00"
               />
-              {errors.sale_price && (
-                <p className="text-red-600 text-sm mt-1">{errors.sale_price}</p>
-              )}
             </div>
           </div>
           {/* Unidade de Medida */}
@@ -466,9 +443,7 @@ export function ProductForm() {
               name="unit_measure"
               value={formData.unit_measure}
               onChange={handleChange}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.unit_measure ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
             >
               <option value="kg">Quilograma (kg)</option>
               <option value="g">Grama (g)</option>
@@ -480,9 +455,6 @@ export function ProductForm() {
               <option value="cx">Caixa (cx)</option>
               <option value="mc">Maço (mc)</option>
             </select>
-            {errors.unit_measure && (
-              <p className="text-red-600 text-sm mt-1">{errors.unit_measure}</p>
-            )}
           </div>
 
           {/* Origem do Produto */}
@@ -500,16 +472,9 @@ export function ProductForm() {
               value={formData.product_origin}
               onChange={handleChange}
               maxLength={100}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.product_origin ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
               placeholder="Ex: Fazenda São José, Cidade - UF"
             />
-            {errors.product_origin && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.product_origin}
-              </p>
-            )}
             <p className="text-sm text-stone-500 mt-1">
               Local de produção ou origem do produto
             </p>
@@ -518,7 +483,7 @@ export function ProductForm() {
           {/* Categoria */}
           <div className="mb-6">
             <label
-              htmlFor="category"
+              htmlFor="category_id"
               className="block font-semibold text-stone-900 mb-2"
             >
               Categoria <span className="text-red-600">*</span>
@@ -529,9 +494,7 @@ export function ProductForm() {
               name="category_id"
               value={formData.category_id}
               onChange={handleChange}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.category ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
             >
               {categories.length === 0 ? (
                 <option value="">Carregando categorias...</option>
@@ -546,9 +509,6 @@ export function ProductForm() {
                 </>
               )}
             </select>
-            {errors.category && (
-              <p className="text-red-600 text-sm mt-1">{errors.category}</p>
-            )}
           </div>
 
           {/* Método de Produção */}
@@ -566,16 +526,9 @@ export function ProductForm() {
               value={formData.production_method}
               onChange={handleChange}
               maxLength={150}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent ${
-                errors.production_method ? "border-red-500" : "border-stone-300"
-              }`}
+              className="w-full px-4 py-3 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
               placeholder="Ex: Orgânico certificado, Agroecológico, Convencional"
             />
-            {errors.production_method && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.production_method}
-              </p>
-            )}
             <p className="text-sm text-stone-500 mt-1">
               Como o produto é cultivado ou produzido
             </p>
@@ -620,7 +573,6 @@ export function ProductForm() {
             </p>
 
             {/* Botão de Upload */}
-
             {formData.images.length < 3 && (
               <div className="mb-4">
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -635,7 +587,7 @@ export function ProductForm() {
                   />
                   <label
                     htmlFor="imageUploadGallery"
-                    className={`flex-1 inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-colors font-medium cursor-pointer ${
+                    className={`flex-1 inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-colors active:scale-95 font-medium cursor-pointer ${
                       formData.images.length >= 3
                         ? "bg-stone-300 text-stone-500 cursor-not-allowed"
                         : "bg-green-700 text-white hover:bg-green-800"
@@ -659,7 +611,7 @@ export function ProductForm() {
                   />
                   <label
                     htmlFor="imageUploadCamera"
-                    className={`flex-1 inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-colors font-medium cursor-pointer ${
+                    className={`flex-1 md:hidden inline-flex justify-center items-center gap-2 px-4 py-3 rounded-lg transition-colors active:scale-95 font-medium cursor-pointer ${
                       formData.images.length >= 3
                         ? "bg-stone-300 text-stone-500 cursor-not-allowed"
                         : "bg-stone-800 text-white hover:bg-stone-900 shadow-md"
@@ -669,16 +621,9 @@ export function ProductForm() {
                     Tirar Foto
                   </label>
                 </div>
-
-                {formData.images.length === 0 && (
-                  <p className="text-sm text-red-600 mt-2">
-                    Pelo menos uma imagem é obrigatória
-                  </p>
-                )}
               </div>
             )}
 
-            {/* Grid de Imagens */}
             {/* Grid de Imagens */}
             {formData.images.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -697,11 +642,11 @@ export function ProductForm() {
                       className="w-full h-48 object-cover rounded-lg border-2 border-stone-200 cursor-move"
                     />
 
-                    {/* Botão X - Fixo e sempre visível */}
+                    {/* Botão X */}
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(index)}
-                      className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 shadow-sm hover:bg-red-700 transition-colors z-10"
+                      className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 shadow-sm hover:bg-red-700 active:scale-90 transition-colors z-10"
                       title="Remover imagem"
                     >
                       <X size={18} />
@@ -714,7 +659,7 @@ export function ProductForm() {
                 ))}
               </div>
             )}
-            <p className="text-sm text-stone-600 mb-3">
+            <p className="text-sm text-stone-600 mb-3 mt-3">
               Você pode arrastar e soltar as imagens para reordená-las. A
               primeira imagem será a principal exibida para os clientes.
             </p>
@@ -725,7 +670,7 @@ export function ProductForm() {
             <button
               type="button"
               onClick={() => navigate("/agricultor/produtos")}
-              className="flex-1 px-6 py-3 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-lg transition-colors font-medium"
+              className="flex-1 px-6 py-3 bg-stone-100 text-stone-700 hover:bg-stone-200 active:scale-95 rounded-lg transition-all font-medium"
               disabled={isSaving}
             >
               Cancelar
@@ -733,7 +678,7 @@ export function ProductForm() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-700 text-white hover:bg-green-800 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-700 text-white hover:bg-green-800 active:scale-95 rounded-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {isSaving ? (
                 <>

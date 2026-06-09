@@ -6,9 +6,10 @@ import {
   User,
   Trash2,
   Loader2,
-  Sprout,
   Home,
   Store,
+  Share2,
+  CheckCircle,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -17,9 +18,16 @@ import { DeleteAccountModal } from "../components/DeleteAccountModal";
 import type { Farmer } from "../Models/Models";
 
 import { logout as logoutApi } from "../services/authService";
-import { getProductsByFarmerId } from "../services/product";
+import { getProductStatistics } from "../services/product";
 
 import { useAuth } from "../context/AuthContext";
+import { Loading } from "../components/Loading";
+
+interface ProductStatistics {
+  total_products: number;
+  active_products: string;
+  inactive_products: string;
+}
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -27,11 +35,12 @@ export function Dashboard() {
   const { logout } = useAuth();
 
   const [dataUser, setDataUser] = useState<Farmer>();
-
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productsStatistics, setproductsStatistics] = useState<ProductStatistics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [linkCopied, setLinkCopied] = useState(false);
 
-  const [productsCount, setProductsCount] = useState(0);
-
+  // Verificação de autenticação e carregamento dos dados do usuário
   useEffect(() => {
     const token = localStorage.getItem("farmer_token");
 
@@ -47,25 +56,31 @@ export function Dashboard() {
     setDataUser(user);
   }, [navigate]);
 
+  // Carrega as estatísticas de produtos assim que os dados do usuário estiverem disponíveis
   useEffect(() => {
     if (dataUser?.id) {
       fetchProductsCount();
     }
   }, [dataUser]);
 
+  // Função para buscar as estatísticas de produtos do agricultor
   const fetchProductsCount = async () => {
     try {
+      setIsLoading(true);
       if (!dataUser?.id) return;
 
-      const products = await getProductsByFarmerId(Number(dataUser.id));
+      const products = await getProductStatistics(Number(dataUser.id));
 
-      setProductsCount(products?.data?.length || 0);
+      setproductsStatistics(products.data || null);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao carregar produtos");
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Função para logout, que revoga o token no backend, remove o token localmente e redireciona para a página de login
   const handleLogout = async () => {
     try {
       await logoutApi();
@@ -80,7 +95,7 @@ export function Dashboard() {
     }
   };
 
-  if (!dataUser) {
+  if (!dataUser || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin text-green-700" />
@@ -88,15 +103,37 @@ export function Dashboard() {
     );
   }
 
-  return (
+  // Variáveis para facilitar a verificação e exibição
+  const totalProducts = productsStatistics?.total_products || 0;
+  const activeProducts = Number(productsStatistics?.active_products || 0);
+  const inactiveProducts = Number(productsStatistics?.inactive_products || 0);
+  const hasInactiveProducts = inactiveProducts > 0;
+
+  const handleShareShowcase = async () => {
+    const url = `${window.location.origin}/vitrine/${dataUser.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      toast.success(
+        "Link da sua vitrine copiado! Compartilhe com seus clientes.",
+      );
+      setTimeout(() => setLinkCopied(false), 3000);
+    } catch {
+      toast.error("Não foi possível copiar. Acesse: " + url);
+    }
+  };
+
+  return !dataUser ? (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loading />
+    </div>
+  ) : (
     <div className="min-h-screen bg-gradient-to-r from-green-900 via-green-800 to-green-900">
       {/* HEADER */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <Sprout className="text-green-700" size={32} />
-
               <h1 className="text-2xl font-bold text-green-800">AgroFamília</h1>
 
               <p className="text-sm text-stone-600">Painel do Agricultor</p>
@@ -144,17 +181,111 @@ export function Dashboard() {
           </p>
         </div>
 
-        {/* CARD PRODUTOS */}
-        <div className="bg-white rounded-xl p-6 border border-stone-200 shadow-sm mb-8 max-w-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-stone-700">Produtos Ativos</h3>
-
-            <Package className="text-green-600" size={24} />
+        {/* Vitrine - Compartilhar */}
+        <div className="bg-white rounded-2xl p-6 mb-8 border border-green-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Share2 className="text-green-700" size={22} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-stone-900">Minha Vitrine</h3>
+              <p className="text-sm text-stone-500">
+                Compartilhe sua página exclusiva com clientes e receba pedidos
+                pelo WhatsApp
+              </p>
+              <a
+                href={`/vitrine/${dataUser.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-green-700 hover:underline mt-0.5 block"
+              >
+                {window.location.origin}/vitrine/{dataUser.id}
+              </a>
+            </div>
           </div>
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
+            <a
+              href={`/vitrine/${dataUser.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 border border-green-600 text-green-700 rounded-lg font-medium text-sm hover:bg-green-50 transition-colors"
+            >
+              Visualizar
+            </a>
+            <button
+              onClick={handleShareShowcase}
+              className="flex items-center gap-2 px-5 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg font-medium text-sm transition-colors"
+            >
+              {linkCopied ? <CheckCircle size={16} /> : <Share2 size={16} />}
+              {linkCopied ? "Copiado!" : "Copiar link"}
+            </button>
+          </div>
+        </div>
 
-          <p className="text-3xl font-bold text-stone-900">{productsCount}</p>
+        {/* ESTATÍSTICAS DE PRODUTOS */}
+        <div className="mb-8">
+          {hasInactiveProducts ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Card Total */}
+              <div className="bg-white rounded-xl p-6 border border-stone-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-stone-700">
+                    Total de Produtos
+                  </h3>
+                </div>
+                <p className="text-3xl font-bold text-stone-900">
+                  {totalProducts}
+                </p>
+                <p className="text-sm text-stone-500 mt-1">
+                  cadastrados no sistema
+                </p>
+              </div>
 
-          <p className="text-sm text-stone-500 mt-1">produtos cadastrados</p>
+              {/* Card Ativos */}
+              <div className="bg-white rounded-xl p-6 border border-stone-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-stone-700">
+                    Produtos Ativos
+                  </h3>
+                </div>
+                <p className="text-3xl font-bold text-stone-900">
+                  {activeProducts}
+                </p>
+                <p className="text-sm text-stone-500 mt-1">
+                  visíveis na vitrine
+                </p>
+              </div>
+
+              {/* Card Inativos */}
+              <div className="bg-white rounded-xl p-6 border border-stone-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-stone-700">
+                    Produtos Inativos
+                  </h3>
+                </div>
+                <p className="text-3xl font-bold text-stone-900">
+                  {inactiveProducts}
+                </p>
+                <p className="text-sm text-stone-500 mt-1">
+                  ocultos na vitrine
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl p-6 border border-stone-200 shadow-sm max-w-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-stone-700">
+                  Total de Produtos
+                </h3>
+              </div>
+              <p className="text-3xl font-bold text-stone-900">
+                {totalProducts}
+              </p>
+              <p className="text-sm text-stone-500 mt-1">
+                produtos cadastrados
+              </p>
+            </div>
+          )}
         </div>
 
         {/* AÇÕES RÁPIDAS */}
@@ -213,11 +344,11 @@ export function Dashboard() {
 
               <div>
                 <h3 className="font-semibold text-stone-900 mb-1">
-                  Configurações
+                  Gerenciar Métodos de Entrega e Pagamento
                 </h3>
 
                 <p className="text-sm text-stone-600">
-                  Gerencie pagamentos e entregas da sua vitrine
+                  Defina quais métodos de entregas e pagamentos você oferece
                 </p>
               </div>
             </button>
@@ -253,7 +384,7 @@ export function Dashboard() {
             navigate("/agricultor/login");
           }}
           farmerName={dataUser.first_name}
-          activeProductsCount={0}
+          activeProductsCount={activeProducts}
           id={Number(dataUser.id)}
         />
       </div>

@@ -34,7 +34,6 @@ export function DeleteAccountModal({
 
     await deleteFarmer(id); // Chama a função para excluir a conta no backend
 
-    // Após a exclusão, limpe o localStorage e redirecione para a página de login
     localStorage.clear();
     window.location.href = '/login';
   };
@@ -70,7 +69,7 @@ export function DeleteAccountModal({
         <div className="p-6">
           {step === 'warning' && (
             <>
-              {/* RF004: Verificação de vínculos críticos */}
+              { /* Verificação de vínculos críticos */ }
               {activeProductsCount > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start gap-3">
