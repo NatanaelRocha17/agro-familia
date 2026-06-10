@@ -89,34 +89,87 @@ export function RegisterForm() {
       .replace(/(\d{5})(\d)/, "$1-$2")
       .slice(0, 9);
 
-      
   const validateForm = () => {
     // Dados Pessoais
-    if (!farmerData.first_name.trim()) { toast.warning("O nome é obrigatório"); return false; }
-    if (!farmerData.last_name.trim()) { toast.warning("O sobrenome é obrigatório"); return false; }
-    if (!farmerData.display_name.trim()) { toast.warning("O nome de exibição é obrigatório"); return false; }
-    if (!farmerData.cpf.trim()) { toast.warning("O CPF é obrigatório"); return false; }
-    if (!farmerData.phone.trim()) { toast.warning("O telefone é obrigatório"); return false; }
-    if (!farmerData.email.trim()) { toast.warning("O e-mail é obrigatório"); return false; }
-    if (!farmerData.gender) { toast.warning("Selecione o seu sexo"); return false; }
+    if (!farmerData.first_name.trim()) {
+      toast.warning("O nome é obrigatório");
+      return false;
+    }
+    if (!farmerData.last_name.trim()) {
+      toast.warning("O sobrenome é obrigatório");
+      return false;
+    }
+    if (!farmerData.display_name.trim()) {
+      toast.warning("O nome de exibição é obrigatório");
+      return false;
+    }
+    if (!farmerData.cpf.trim()) {
+      toast.warning("O CPF é obrigatório");
+      return false;
+    }
+    if (!farmerData.phone.trim()) {
+      toast.warning("O telefone é obrigatório");
+      return false;
+    }
+    if (!farmerData.email.trim()) {
+      toast.warning("O e-mail é obrigatório");
+      return false;
+    }
+    if (!farmerData.gender) {
+      toast.warning("Selecione o seu sexo");
+      return false;
+    }
 
     // Atividade Rural
-    if (!farmerData.profession.trim()) { toast.warning("A profissão é obrigatória"); return false; }
-    if (!farmerData.description.trim()) { toast.warning("A descrição da atividade é obrigatória"); return false; }
+    if (!farmerData.profession.trim()) {
+      toast.warning("A profissão é obrigatória");
+      return false;
+    }
+    if (!farmerData.description.trim()) {
+      toast.warning("A descrição da atividade é obrigatória");
+      return false;
+    }
 
     // Endereço
     const addr = farmerData.address;
-    if (!addr.zip_code.trim()) { toast.warning("O CEP é obrigatório"); return false; }
-    if (!addr.number.trim()) { toast.warning("O número do endereço é obrigatório"); return false; }
-    if (!addr.street.trim()) { toast.warning("A rua é obrigatória"); return false; }
-    if (!addr.neighborhood.trim()) { toast.warning("O bairro é obrigatório"); return false; }
-    if (!addr.city.trim()) { toast.warning("A cidade é obrigatória"); return false; }
-    if (!addr.state) { toast.warning("Selecione o estado (UF)"); return false; }
+    if (!addr.zip_code.trim()) {
+      toast.warning("O CEP é obrigatório");
+      return false;
+    }
+    if (!addr.number.trim()) {
+      toast.warning("O número do endereço é obrigatório");
+      return false;
+    }
+    if (!addr.street.trim()) {
+      toast.warning("A rua é obrigatória");
+      return false;
+    }
+    if (!addr.neighborhood.trim()) {
+      toast.warning("O bairro é obrigatório");
+      return false;
+    }
+    if (!addr.city.trim()) {
+      toast.warning("A cidade é obrigatória");
+      return false;
+    }
+    if (!addr.state) {
+      toast.warning("Selecione o estado (UF)");
+      return false;
+    }
 
     // Senha
-    if (!farmerData.password) { toast.warning("A senha é obrigatória"); return false; }
-    if (farmerData.password.length < 8) { toast.warning("A senha deve ter pelo menos 8 caracteres"); return false; }
-    if (farmerData.password !== farmerData.confirm_password) { toast.warning("As senhas não coincidem"); return false; }
+    if (!farmerData.password) {
+      toast.warning("A senha é obrigatória");
+      return false;
+    }
+    if (farmerData.password.length < 8) {
+      toast.warning("A senha deve ter pelo menos 8 caracteres");
+      return false;
+    }
+    if (farmerData.password !== farmerData.confirm_password) {
+      toast.warning("As senhas não coincidem");
+      return false;
+    }
 
     return true;
   };
@@ -159,8 +212,20 @@ export function RegisterForm() {
       await postFarmer(dataToSend);
       toast.success("Cadastro concluído com sucesso!");
       navigate("/agricultor/login");
-    } catch (error) {
-      toast.error("Erro ao realizar cadastro. Tente novamente.");
+    } catch (error: any) {
+      if (error.response && error.response.data) {
+        const { message, errorType } = error.response.data;
+
+        if (errorType === "DUPLICATE_ENTRY") {
+          toast.error("Ops! Esse e-mail ou CPF já está cadastrado.");
+        } else {
+          toast.error(message || "Erro ao realizar o cadastro.");
+        }
+      } else {
+        toast.error(
+          "Não foi possível conectar ao servidor. Tente novamente mais tarde.",
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -169,7 +234,7 @@ export function RegisterForm() {
   // Função para mudar campos de dentro do endereço
   const handleAddressChange = async (
     campo: keyof Farmer["address"],
-    valor: string
+    valor: string,
   ) => {
     let valorFormatado = valor;
 
@@ -237,7 +302,7 @@ export function RegisterForm() {
       () => {
         toast.error("Erro ao obter GPS. Preencha o endereço somente.");
         setIsGettingLocation(false);
-      }
+      },
     );
   };
 
@@ -303,9 +368,7 @@ export function RegisterForm() {
                 <input
                   className={inputClass}
                   value={farmerData.display_name}
-                  onChange={(e) =>
-                    aoMudarCampo("display_name", e.target.value)
-                  }
+                  onChange={(e) => aoMudarCampo("display_name", e.target.value)}
                 />
               </div>
 
@@ -362,7 +425,9 @@ export function RegisterForm() {
 
             <div className="space-y-6">
               <div>
-                <label className={labelClass}>Profissão / Especialidade *</label>
+                <label className={labelClass}>
+                  Profissão / Especialidade *
+                </label>
                 <input
                   className={inputClass}
                   placeholder="Ex: Produtor de Hortaliças Orgânicas"
@@ -412,7 +477,9 @@ export function RegisterForm() {
                 <input
                   className={inputClass}
                   value={farmerData.address.number}
-                  onChange={(e) => handleAddressChange("number", e.target.value)}
+                  onChange={(e) =>
+                    handleAddressChange("number", e.target.value)
+                  }
                 />
               </div>
 
@@ -433,7 +500,9 @@ export function RegisterForm() {
                 <input
                   className={inputClass}
                   value={farmerData.address.street}
-                  onChange={(e) => handleAddressChange("street", e.target.value)}
+                  onChange={(e) =>
+                    handleAddressChange("street", e.target.value)
+                  }
                 />
               </div>
 
@@ -499,7 +568,8 @@ export function RegisterForm() {
             <div className="bg-stone-50 border border-stone-200 rounded-lg p-5">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <p className="text-sm text-stone-600 flex-1">
-                  Capture sua localização atual para garantir mais precisão no mapa para os seus clientes.
+                  Capture sua localização atual para garantir mais precisão no
+                  mapa para os seus clientes.
                 </p>
                 {/* BOTÃO DE LOCALIZAÇÃO ATUALIZADO */}
                 <button

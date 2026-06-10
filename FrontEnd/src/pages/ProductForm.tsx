@@ -72,7 +72,7 @@ export function ProductForm() {
   const loadProduct = () => {
     setIsLoading(true);
     try {
-      const user = JSON.parse(localStorage.getItem("farmer_user") || "{}");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
       const products = JSON.parse(
         localStorage.getItem(`products_${user.id}`) || "[]",
       );
@@ -138,7 +138,7 @@ export function ProductForm() {
     setDragIndex(null);
   };
 
-  // 🔥 VALIDAÇÃO POR TOASTS
+  // VALIDAÇÃO POR TOASTS
   const validateForm = () => {
     if (!formData.name.trim()) {
       toast.warning("Nome do produto é obrigatório");
@@ -176,7 +176,7 @@ export function ProductForm() {
     setIsSaving(true);
 
     try {
-      const userStr = localStorage.getItem("farmer_user"); // corrigido para farmer_user para evitar bugs de ID
+      const userStr = localStorage.getItem("user"); 
       const user = JSON.parse(userStr || "{}");
 
       const uploadedImages: { image_url: string }[] = [];

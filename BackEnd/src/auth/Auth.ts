@@ -54,8 +54,8 @@ export const refresh = async (req: Request, res: Response) => {
 
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 4 * 24 * 60 * 60 * 1000
     });
 

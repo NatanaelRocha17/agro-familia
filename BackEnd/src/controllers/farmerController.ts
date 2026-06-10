@@ -4,6 +4,7 @@ import farmerRepository from '../repositories/farmerRepository';
 import addressRepository from '../repositories/addressRepository';
 import pool from '../config/database';
 
+
 // Obtém os dados do agricultor autenticado (me), retornando as informações do agricultor associado ao token de autenticação presente na requisição, permitindo que os usuários possam visualizar e editar suas informações pessoais e de contato
 export const getAllFarmers = async (req: Request, res: Response) => {
   try {
@@ -28,7 +29,7 @@ export const getAllFarmers = async (req: Request, res: Response) => {
     console.error("Erro no getAll (Farmer):", err);
     return res.status(500).json({ 
       success: false, 
-      message: 'Erro interno ao buscar agricultores.' 
+      message: "Erro interno de servidor"
     });
   }
 };
@@ -67,7 +68,6 @@ export const createFarmer = async (req: Request, res: Response) => {
   try {
     const { password, confirm_password, address, ...rest } = req.body;
 
-    // Fail-fast: Valida antes de abrir conexão com o banco
     if (password !== confirm_password) {
       return res.status(400).json({ 
         success: false, 
@@ -104,18 +104,35 @@ export const createFarmer = async (req: Request, res: Response) => {
 
     } catch (error) {
       await connection.rollback();
-      throw error; // Joga o erro para o catch externo capturar e devolver o 500
+      throw error; // Joga o erro para o catch externo
     } finally {
       connection.release();
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro no create (Farmer):", error);
+    if (error.sqlState === '23000' || error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ 
+        success: false, 
+        errorType: "DUPLICATE_ENTRY",
+        message: "Este e-mail, CPF ou documento já está cadastrado no sistema." 
+      });
+    }
+
+    if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+      return res.status(400).json({
+        success: false,
+        errorType: "INVALID_REFERENCE",
+        message: "Algum dado informado não está associado a um registro válido."
+      });
+    }
+
     return res.status(500).json({ 
       success: false, 
       message: "Erro interno ao cadastrar agricultor." 
     });
   }
 };
+
 
 // Atualiza os dados de um agricultor específico, recebendo os dados atualizados no corpo da requisição e retornando uma mensagem de sucesso ou erro dependendo do resultado da operação, permitindo que os agricultores possam manter suas informações pessoais e de contato atualizadas na plataforma
 export const updateFarmer = async (req: Request, res: Response) => {

@@ -11,8 +11,8 @@ import refreshTokenRepository from "../repositories/refreshTokenRepository";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: false,
-  sameSite: "lax" as const,
+  secure: true,
+  sameSite: "none" as const,
   maxAge: 4 * 24 * 60 * 60 * 1000
 };
 
