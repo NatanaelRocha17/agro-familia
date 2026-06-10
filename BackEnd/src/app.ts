@@ -19,8 +19,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:3008',
-    'https://dubiously-bacteria-unroasted.ngrok-free.dev',
-    'http://192.168.0.121:3008'
+'https://agro-familia.vercel.app'
   ],
   credentials: true
 }));
