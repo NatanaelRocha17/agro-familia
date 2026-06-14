@@ -1,24 +1,24 @@
 import { Request, Response } from "express";
 
 // Importando dependências que serão "mockadas" (falsificadas para o teste)
-import farmerRepository from "./repositories/farmerRepository";
-import deliveryRepository from "./repositories/deliveryRepository";
-import cloudinary from "./config/cloudinary";
+import farmerRepository from "../repositories/farmerRepository";
+import deliveryRepository from "../repositories/deliveryRepository";
+import cloudinary from "../config/cloudinary";
 
 import {
   createFarmer,
   getMeFarmer,
   removeFarmer,
-} from "./controllers/farmerController";
+} from "../controllers/farmerController";
 import {
   getTypesDelivery,
   removeDelivery,
-} from "./controllers/deliveryController";
+} from "../controllers/deliveryController";
 import {
   createProduct,
   getNearbyProducts,
   removeCloudinaryImageProduct,
-} from "./controllers/productController";
+} from "../controllers/productController";
 
 // Avisando ao Jest para simular (mockar) esses arquivos inteiros
 jest.mock("./repositories/farmerRepository");

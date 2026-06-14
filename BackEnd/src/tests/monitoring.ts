@@ -1,4 +1,4 @@
-/*import client from 'prom-client';
+import client from 'prom-client';
 import { Express } from 'express';
 
 // 1. Limpa o registro global para garantir estado limpo a cada reinicialização
@@ -59,4 +59,4 @@ export function setupMonitoring(app: Express) {
       res.status(500).send(err);
     }
   });
-} */
+} 

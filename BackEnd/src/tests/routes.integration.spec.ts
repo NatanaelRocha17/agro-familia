@@ -1,11 +1,11 @@
 import request from "supertest";
 import jwt from "jsonwebtoken";
-import app from "./app";
+import app from "../app";
 
 // Mocks
-import farmerRepository from "./repositories/farmerRepository";
-import productRepository from "./repositories/productRepository";
-import deliveryRepository from "./repositories/deliveryRepository";
+import farmerRepository from "../repositories/farmerRepository";
+import productRepository from "../repositories/productRepository";
+import deliveryRepository from "../repositories/deliveryRepository";
 
 jest.mock("./repositories/farmerRepository");
 jest.mock("./repositories/productRepository");
