@@ -231,7 +231,7 @@ export function ProductDetails() {
                       </span>
                       <span className="text-4xl font-bold text-green-800">
                         R${" "}
-                        {Number(product.product.price)
+                        {Number(product.product.sale_price)
                           .toFixed(2)
                           .replace(".", ",")}
                       </span>
